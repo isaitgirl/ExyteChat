@@ -24,7 +24,9 @@ struct MessageView: View {
     let isDisplayingMessageMenu: Bool
 
     static let widthWithMedia: CGFloat = 204
-    static let statusViewWidth: CGFloat = 10
+    // isaCloud: the delivery status icon (clock, checks) was 10 pt, too small to read next to the bubble. It stays aligned with the
+    // bottom of the bubble. This width is also used to compute the space left for the bubble, so the bubbles get 6 pt narrower.
+    static let statusViewWidth: CGFloat = 16
     static let horizontalScreenEdgePadding: CGFloat = 12
     static let horizontalTextPadding: CGFloat = 12
     static let timeViewTextPadding: CGFloat = 12
