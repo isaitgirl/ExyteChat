@@ -47,6 +47,11 @@ struct MessageView: View {
         if !text.urls.isEmpty && params.linkPreviewLimit > 0 {
             return .vstack
         }
+        // isaCloud: a quote is drawn indented, with its bar, so the text measures below would not match what is shown:
+        // the time always goes under the text.
+        if text.containsQuote {
+            return .vstack
+        }
 
         let isCurrentUser = message.user.isCurrentUser
         let bubblePaddings = MessageView.horizontalScreenEdgePadding * 2 + MessageView.horizontalBubblePadding
