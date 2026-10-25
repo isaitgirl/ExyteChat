@@ -15,6 +15,7 @@ import SwiftUI
 /// - closure to show message context menu
 /// - closure to pass user interaction, .reply for example
 /// - pass attachment to this closure to use ChatView's fullscreen media viewer
+/// - closure to show the reaction details sheet (who reacted with what); call it when the user taps the reactions of a custom message view
 public struct MessageBuilderParameters {
     public let message: Message
     public let positionInGroup: PositionInUserGroup
@@ -23,6 +24,8 @@ public struct MessageBuilderParameters {
     public let showContextMenuClosure: () -> Void
     public let messageActionClosure: (Message, DefaultMessageMenuAction) -> Void
     public let showAttachmentClosure: (Attachment) -> Void
+    // isaCloud: lets a custom message view open the reaction details sheet when its reactions are tapped
+    public let showReactionDetailsClosure: () -> Void
 
     @MainActor public func defaultMessageView() -> some View {
         DefaultMessageView(params: self)
