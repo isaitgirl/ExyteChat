@@ -245,6 +245,14 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             .sheet(item: $viewModel.shareAttachmentsItem) { item in
                 ShareSheet(activityItems: item.urls)
             }
+            // isaCloud: who reacted with what, shown when the reactions of a message are tapped
+            .sheet(item: $viewModel.reactionDetailsItem) { item in
+                // look the message up again, so reactions that arrive while the sheet is open show up
+                ReactionDetailsSheet(
+                    message: sections.lazy.flatMap { $0.rows }.first { $0.message.id == item.id }?.message,
+                    localization: chatCustomizationParameters.localization
+                )
+            }
             .overlay {
                 if viewModel.isPreparingAttachmentsShare {
                     ProgressView()

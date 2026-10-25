@@ -20,6 +20,10 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var isPreparingAttachmentsShare = false
 
     @Published var messageMenuRow: MessageRow?
+
+    // isaCloud: the reaction details sheet (who reacted with what), opened by tapping the reactions of a message
+    /// The message whose reactions are listed in the reaction details sheet (who reacted with what)
+    @Published var reactionDetailsItem: ReactionDetailsItem?
     
     /// The messages frame that is currently being rendered in the Message Menu
     /// - Note: Used to further refine a messages frame (instead of using the cell boundary), mainly used for positioning reactions
@@ -52,6 +56,10 @@ final class ChatViewModel: ObservableObject {
 
     func stopLiveLocationSharing() {
         liveLocationBroadcaster.finish()
+    }
+
+    func presentReactionDetails(for messageId: String) {
+        reactionDetailsItem = ReactionDetailsItem(id: messageId)
     }
 
     func presentAttachmentFullScreen(_ attachment: Attachment) {
@@ -128,4 +136,9 @@ final class ChatViewModel: ObservableObject {
 struct ShareAttachmentsItem: Identifiable {
     let id = UUID()
     let urls: [URL]
+}
+
+// isaCloud: identifies the message shown in the reaction details sheet
+struct ReactionDetailsItem: Identifiable, Equatable {
+    let id: String
 }

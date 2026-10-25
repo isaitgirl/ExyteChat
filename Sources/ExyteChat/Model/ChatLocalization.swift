@@ -33,6 +33,15 @@ public struct ChatLocalization: Hashable {
     public var openInMapsText: String
     public var unknownSize: String
     public var unknownFileType: String
+    // isaCloud: texts of the reaction details sheet
+    /// Title of the reaction details sheet when several people reacted: format string with a single `%d` placeholder, e.g. "%d reactions"
+    public var reactionsTitleFormat: String
+    /// Title of the reaction details sheet when only one reaction exists
+    public var reactionsTitleOneText: String
+    /// Filter chip in the reaction details sheet that shows the reactions of all emojis
+    public var allReactionsText: String
+    /// Name shown for the current user in the reaction details sheet
+    public var reactionsYouText: String
 
     public init(
         inputPlaceholder: String,
@@ -58,7 +67,11 @@ public struct ChatLocalization: Hashable {
         liveLocationUpdatedMinutesAgoFormat: String = String(localized: "updated %d min ago"),
         openInMapsText: String = String(localized: "Open in Maps"),
         unknownSize: String = String(localized: "Unknown size"),
-        unknownFileType: String = String(localized: "Unknown file type")
+        unknownFileType: String = String(localized: "Unknown file type"),
+        reactionsTitleFormat: String = String(localized: "%d reactions"),
+        reactionsTitleOneText: String = String(localized: "1 reaction"),
+        allReactionsText: String = String(localized: "All"),
+        reactionsYouText: String = String(localized: "You")
     ) {
         self.inputPlaceholder = inputPlaceholder
         self.signatureText = signatureText
@@ -84,6 +97,10 @@ public struct ChatLocalization: Hashable {
         self.openInMapsText = openInMapsText
         self.unknownSize = unknownSize
         self.unknownFileType = unknownFileType
+        self.reactionsTitleFormat = reactionsTitleFormat
+        self.reactionsTitleOneText = reactionsTitleOneText
+        self.allReactionsText = allReactionsText
+        self.reactionsYouText = reactionsYouText
     }
 
    public static var defaultLocalization: ChatLocalization {
@@ -111,7 +128,11 @@ public struct ChatLocalization: Hashable {
             liveLocationUpdatedMinutesAgoFormat: String(localized: "updated %d min ago"),
             openInMapsText: String(localized: "Open in Maps"),
             unknownSize: String(localized: "Unknown size"),
-            unknownFileType: String(localized: "Unknown file type")
+            unknownFileType: String(localized: "Unknown file type"),
+            reactionsTitleFormat: String(localized: "%d reactions"),
+            reactionsTitleOneText: String(localized: "1 reaction"),
+            allReactionsText: String(localized: "All"),
+            reactionsYouText: String(localized: "You")
         )
     }
 }

@@ -34,6 +34,10 @@ struct ChatMessageView<MessageContent: View>: View {
                     messageActionClosure: viewModel.messageMenuAction(),
                     showAttachmentClosure: { attachment in
                         self.viewModel.presentAttachmentFullScreen(attachment)
+                    },
+                    // isaCloud: open the reaction details sheet
+                    showReactionDetailsClosure: {
+                        self.viewModel.presentReactionDetails(for: row.message.id)
                     }
                 )
             )

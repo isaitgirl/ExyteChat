@@ -9,8 +9,10 @@ extension MessageView {
     
     @ViewBuilder
     func reactionsView(_ message: Message, maxReactions: Int = 5) -> some View {
-        let preparedReactions = prepareReactions(message: message, maxReactions: maxReactions)
-        let overflowBubbleText = "+\(message.reactions.count - maxReactions + 1)"
+        // isaCloud: one bubble per emoji (with a count), not one per reaction
+        let groups = ReactionGroup.groups(of: message.reactions)
+        let preparedReactions = prepareReactions(groups: groups, message: message, maxReactions: maxReactions)
+        let overflowBubbleText = "+\(groups.count - maxReactions + 1)"
         
         HStack(spacing: -reactionViewWidth / 5) {
             if !message.user.isCurrentUser {
@@ -22,10 +24,10 @@ extension MessageView {
                 )
             }
             
-            ForEach(Array(preparedReactions.reactions.enumerated()), id: \.element) { index, reaction in
-                ReactionBubble(reaction: reaction, font: params.font)
+            ForEach(Array(preparedReactions.groups.enumerated()), id: \.element.id) { index, group in
+                ReactionBubble(reaction: group.representative, count: group.count, font: params.font)
                     .transition(.scaleAndFade)
-                    .zIndex(message.user.isCurrentUser ? Double(preparedReactions.reactions.count - index) : Double(index + 1))
+                    .zIndex(message.user.isCurrentUser ? Double(preparedReactions.groups.count - index) : Double(index + 1))
             }
             
             if message.user.isCurrentUser {
@@ -41,6 +43,14 @@ extension MessageView {
             x: message.user.isCurrentUser ? -(reactionViewWidth / 2) : (reactionViewWidth / 2),
             y: 0
         )
+        // isaCloud: a tap on the reactions shows who reacted with what
+        .contentShape(Rectangle())
+        .onTapGesture {
+            viewModel.presentReactionDetails(for: message.id)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: groups.map { "\($0.emoji) \($0.count)" }.joined(separator: ", ")))
+        .accessibilityAddTraits(.isButton)
     }
     
     @ViewBuilder
@@ -64,34 +74,34 @@ extension MessageView {
     }
     
     struct PreparedReactions {
-        /// Sorted Reactions by most recent -> oldest (trimmed to maxReactions)
-        let reactions: [Reaction]
-        /// Indicates whether we need to add an overflow bubble (due to the number of Reactions exceeding maxReactions)
+        /// Reaction groups sorted by most recent -> oldest (trimmed to maxReactions)
+        let groups: [ReactionGroup]
+        /// Indicates whether we need to add an overflow bubble (due to the number of groups exceeding maxReactions)
         let needsOverflowBubble: Bool
-        /// Indicates whether the clipped reactions (oldest reactions beyond maxReaction) contain a reaction from the current user
+        /// Indicates whether the clipped groups (oldest groups beyond maxReaction) contain a reaction from the current user
         /// - Note: This value is used to color the background of the overflow bubble
         let overflowContainsCurrentUser: Bool
     }
     
-    /// Orders the reactions by most recent to oldest, reverses their layout based on alignment and determines if an overflow bubble is necessary
-    private func prepareReactions(message: Message, maxReactions: Int) -> PreparedReactions {
-        guard maxReactions > 1, !message.reactions.isEmpty else {
-            return .init(reactions: [], needsOverflowBubble: false, overflowContainsCurrentUser: false)
+    /// Orders the groups by most recent to oldest, reverses their layout based on alignment and determines if an overflow bubble is necessary
+    private func prepareReactions(groups allGroups: [ReactionGroup], message: Message, maxReactions: Int) -> PreparedReactions {
+        guard maxReactions > 1, !allGroups.isEmpty else {
+            return .init(groups: [], needsOverflowBubble: false, overflowContainsCurrentUser: false)
         }
-        // If we have more reactions than maxReactions, then we'll need an overflow bubble
-        let needsOverflowBubble = message.reactions.count > maxReactions
-        // Sort all reactions by most recent -> oldest
-        var reactions = Array(message.reactions.sorted(by: { $0.createdAt > $1.createdAt }))
-        // Check if our current user has a reaction in the overflow reactions (used for coloring the overflow bubble)
+        // If we have more groups than maxReactions, then we'll need an overflow bubble
+        let needsOverflowBubble = allGroups.count > maxReactions
+        // `ReactionGroup.groups(of:)` already sorts the groups by most recent -> oldest
+        var groups = allGroups
+        // Check if our current user has a reaction in the overflow groups (used for coloring the overflow bubble)
         var overflowContainsCurrentUser: Bool = false
         if needsOverflowBubble {
-           overflowContainsCurrentUser = reactions[min(reactions.count, maxReactions)...].contains(where: {  $0.user.isCurrentUser })
+            overflowContainsCurrentUser = groups[(maxReactions - 1)...].contains(where: { $0.containsCurrentUser })
         }
-        // Trim the reactions array if necessary
-        if needsOverflowBubble { reactions = Array(reactions.prefix(maxReactions - 1)) }
+        // Trim the groups array if necessary
+        if needsOverflowBubble { groups = Array(groups.prefix(maxReactions - 1)) }
         
         return .init(
-            reactions: message.user.isCurrentUser ? reactions : reactions.reversed(),
+            groups: message.user.isCurrentUser ? groups : groups.reversed(),
             needsOverflowBubble: needsOverflowBubble,
             overflowContainsCurrentUser: overflowContainsCurrentUser
         )
@@ -103,6 +113,8 @@ struct ReactionBubble: View {
     @Environment(\.chatTheme) var theme
     
     let reaction: Reaction
+    /// how many people reacted with this emoji; a small badge with the count sits on the bubble when more than one
+    var count: Int = 1
     let font: UIFont
 
     static let padding: CGFloat = 6
@@ -155,5 +167,16 @@ struct ReactionBubble: View {
                     }
                 }
             )
+            .overlay(alignment: .bottomTrailing) {
+                if count > 1 {
+                    Text(verbatim: "\(count)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(theme.colors.mainBG)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Circle().fill(theme.colors.mainText))
+                        .offset(x: 4, y: 4)
+                }
+            }
     }
 }
