@@ -27,7 +27,8 @@ extension MessageView {
             ForEach(Array(preparedReactions.groups.enumerated()), id: \.element.id) { index, group in
                 ReactionBubble(reaction: group.representative, count: group.count, font: params.font)
                     .transition(.scaleAndFade)
-                    .zIndex(message.user.isCurrentUser ? Double(preparedReactions.groups.count - index) : Double(index + 1))
+                    // isaCloud: each bubble sits above the one to its right, so the count on its top right corner is not covered
+                    .zIndex(Double(preparedReactions.groups.count - index))
             }
             
             if message.user.isCurrentUser {
