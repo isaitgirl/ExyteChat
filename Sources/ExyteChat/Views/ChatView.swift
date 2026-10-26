@@ -247,11 +247,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
             // isaCloud: who reacted with what, shown when the reactions of a message are tapped
             .sheet(item: $viewModel.reactionDetailsItem) { item in
-                // look the message up again, so reactions that arrive while the sheet is open show up
-                ReactionDetailsSheet(
-                    message: sections.lazy.flatMap { $0.rows }.first { $0.message.id == item.id }?.message,
-                    localization: chatCustomizationParameters.localization
-                )
+                reactionDetailsSheet(for: item)
             }
             .overlay {
                 if viewModel.isPreparingAttachmentsShare {
@@ -260,6 +256,25 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
+    }
+
+    // isaCloud: the sheet looks the message up again, so reactions that arrive while it is open show up
+    @ViewBuilder
+    private func reactionDetailsSheet(for item: ReactionDetailsItem) -> some View {
+        let message = sections.lazy.flatMap { $0.rows }.first { $0.message.id == item.id }?.message
+        let delegate = chatCustomizationParameters.reactionDelegate
+        let currentUser = sections.lazy.flatMap { $0.rows }.first { $0.message.user.isCurrentUser }?.message.user
+        let canReact = message.map { delegate?.canReact(to: $0) ?? false } ?? false
+        ReactionDetailsSheet(
+            message: message,
+            localization: chatCustomizationParameters.localization,
+            currentUser: currentUser,
+            canReact: canReact,
+            onReact: { emoji in
+                guard let message, let delegate else { return }
+                delegate.didReact(to: message, reaction: DraftReaction(messageID: message.id, type: .emoji(emoji)))
+            }
+        )
     }
 
     // MARK: - other views
