@@ -167,7 +167,8 @@ struct ReactionBubble: View {
                     }
                 }
             )
-            .overlay(alignment: .bottomTrailing) {
+            // isaCloud: the count sits on the top corner, so it does not cover the neighbour bubble or the message text
+            .overlay(alignment: .topTrailing) {
                 if count > 1 {
                     Text(verbatim: "\(count)")
                         .font(.caption2.weight(.bold))
@@ -175,7 +176,7 @@ struct ReactionBubble: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Circle().fill(theme.colors.mainText))
-                        .offset(x: 4, y: 4)
+                        .offset(x: 4, y: -4)
                 }
             }
     }
