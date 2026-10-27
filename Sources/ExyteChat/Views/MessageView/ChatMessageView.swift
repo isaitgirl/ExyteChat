@@ -11,7 +11,6 @@ struct ChatMessageView<MessageContent: View>: View {
 
     typealias MessageBuilderParamsClosure = ChatView<MessageContent, EmptyView, DefaultMessageMenuAction>.MessageBuilderParamsClosure
 
-    @Environment(\.chatTheme) private var theme
     @ObservedObject var viewModel: ChatViewModel
 
     var messageBuilder: MessageBuilderParamsClosure
@@ -23,20 +22,27 @@ struct ChatMessageView<MessageContent: View>: View {
 
     @State var timeViewSize: CGSize?
 
-    // isaCloud: pulling the bubble to the right replies to it
-    /// how far the bubble is pulled
-    @State private var pullOffset: CGFloat = 0
-    /// nil until the direction of the drag is known: only a drag that starts going sideways pulls the bubble
-    @State private var pullIsHorizontal: Bool?
-    @State private var pullPassedThreshold = false
-    private let pullThreshold: CGFloat = 64
-    private let pullMaximum: CGFloat = 96
+    // isaCloud: pulling the bubble to the right replies to it; the pull itself lives in PullToReplyContainer, not in a @State
+    // or @StateObject of this view: this view builds the whole message, and it would be built again on every frame of the drag
 
     private var canPullToReply: Bool {
         !isDisplayingMessageMenu && viewModel.swipeToReply != nil && viewModel.swipeToReplyActiveFor(row.message)
     }
 
     var body: some View {
+        PullToReplyContainer(
+            enabled: canPullToReply,
+            onReply: {
+                viewModel.swipeToReply?(row.message)
+                viewModel.focusTheInputTextView()
+            },
+            content: messageContent
+        )
+        .id(row.message.id)
+    }
+
+    @ViewBuilder
+    private var messageContent: some View {
         ZStack {
             let customMessageView = messageBuilder(
                 MessageBuilderParameters(
@@ -73,63 +79,102 @@ struct ChatMessageView<MessageContent: View>: View {
                     .environment(\.messageCustomizationParams, messageParams)
             }
         }
-        .offset(x: pullOffset)
-        .background(alignment: .leading) {
-            if pullOffset > 0 {
-                pullReplyIcon
+    }
+}
+
+// MARK: - isaCloud: pull to reply
+
+/// The pull of one bubble. A class on its own, read only by PullToReplyContainer: a @State of ChatMessageView would build
+/// the whole message (the app's message builder, the bubble) again on every frame of the drag.
+private final class PullToReplyState: ObservableObject {
+    /// how far the bubble is pulled
+    @Published var offset: CGFloat = 0
+    @Published var passedThreshold = false
+    /// nil until the direction of the drag is known: only a drag that starts going sideways pulls the bubble
+    var isHorizontal: Bool?
+    private let haptics = UIImpactFeedbackGenerator(style: .medium)
+
+    /// a generator that is created and fired at once answers late (the first tap of the vibration motor), so it is prepared before
+    func prepareHaptics() { haptics.prepare() }
+    func impact() { haptics.impactOccurred() }
+}
+
+/// Moves the bubble with the finger and draws the reply arrow behind it. Letting go past the threshold replies, and the bubble
+/// springs back (the bounce).
+private struct PullToReplyContainer<Content: View>: View {
+    @Environment(\.chatTheme) private var theme
+    @StateObject private var state = PullToReplyState()
+    let enabled: Bool
+    let onReply: () -> Void
+    let content: Content
+
+    private let threshold: CGFloat = 64
+    private let maximum: CGFloat = 96
+    private let bounce = Animation.interpolatingSpring(stiffness: 260, damping: 11)
+
+    var body: some View {
+        content
+            .offset(x: state.offset)
+            .background(alignment: .leading) {
+                if state.offset > 0 {
+                    replyIcon
+                }
             }
-        }
-        .applyIf(canPullToReply) {
-            $0.simultaneousGesture(pullGesture)
-        }
-        .id(row.message.id)
+            .applyIf(enabled) {
+                $0.simultaneousGesture(gesture)
+            }
     }
 
     /// the arrow that shows up behind the bubble while it is pulled, and fills in when letting go would reply
-    private var pullReplyIcon: some View {
-        let progress = min(pullOffset / pullThreshold, 1)
+    private var replyIcon: some View {
+        let progress = min(state.offset / threshold, 1)
         return Image(systemName: "arrowshape.turn.up.left.fill")
             .font(.body)
-            .foregroundStyle(pullPassedThreshold ? Color.white : Color.secondary)
+            .foregroundStyle(state.passedThreshold ? Color.white : Color.secondary)
             .frame(width: 34, height: 34)
-            .background(Circle().fill(pullPassedThreshold ? theme.colors.messageMyBG : Color.secondary.opacity(0.15)))
+            .background(Circle().fill(state.passedThreshold ? theme.colors.messageMyBG : Color.secondary.opacity(0.15)))
             .scaleEffect(0.5 + 0.5 * progress)
             .opacity(progress)
             .padding(.leading, 12)
             .accessibilityHidden(true)
     }
 
-    /// the bubble follows the finger, slower after the threshold; letting go replies when it is past the threshold and the
-    /// bubble springs back (the bounce)
-    private var pullGesture: some Gesture {
+    /// the bubble follows the finger, slower after the threshold
+    private var gesture: some Gesture {
         DragGesture(minimumDistance: 10)
             .onChanged { value in
-                if pullIsHorizontal == nil {
+                if state.isHorizontal == nil {
                     // a drag that starts going up or down is the list scrolling; a drag from the left edge is the back gesture
-                    pullIsHorizontal = value.translation.width > 0
+                    state.isHorizontal = value.translation.width > 0
                         && value.translation.width > abs(value.translation.height) * 1.5
                         && value.startLocation.x > 24
+                    if state.isHorizontal == true {
+                        state.prepareHaptics()
+                    }
                 }
-                guard pullIsHorizontal == true else { return }
+                guard state.isHorizontal == true else { return }
                 let width = max(value.translation.width, 0)
-                let pulled = width <= pullThreshold ? width : pullThreshold + (width - pullThreshold) * 0.25
-                pullOffset = min(pulled, pullMaximum)
-                let passed = pullOffset >= pullThreshold
-                if passed != pullPassedThreshold {
-                    pullPassedThreshold = passed
-                    if passed { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+                let pulled = width <= threshold ? width : threshold + (width - threshold) * 0.25
+                state.offset = min(pulled, maximum)
+                let passed = state.offset >= threshold
+                if passed != state.passedThreshold {
+                    state.passedThreshold = passed
+                    if passed { state.impact() }
                 }
             }
             .onEnded { _ in
-                let shouldReply = pullIsHorizontal == true && pullPassedThreshold
-                pullIsHorizontal = nil
-                pullPassedThreshold = false
-                withAnimation(.interpolatingSpring(stiffness: 260, damping: 11)) {
-                    pullOffset = 0
+                let shouldReply = state.isHorizontal == true && state.passedThreshold
+                state.isHorizontal = nil
+                state.passedThreshold = false
+                withAnimation(bounce) {
+                    state.offset = 0
                 }
                 if shouldReply {
-                    viewModel.swipeToReply?(row.message)
-                    viewModel.focusTheInputTextView()
+                    // the keyboard and the quote in the text field come after the bounce, not together with it: both are heavy
+                    // for the main thread and made the bounce stutter
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        onReply()
+                    }
                 }
             }
     }
