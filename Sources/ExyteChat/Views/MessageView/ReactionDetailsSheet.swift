@@ -151,15 +151,14 @@ struct ReactionDetailsSheet: View {
     }
 
     private func row(for person: PersonReactions) -> some View {
-        LabeledContent {
-            emojiStrip(person.emojis)
-        } label: {
-            HStack(spacing: 10) {
-                avatar(for: person.user)
-                Text(name(of: person.user))
-                    .foregroundStyle(theme.colors.mainText)
-                    .lineLimit(1)
-            }
+        HStack(alignment: .top, spacing: 10) {
+            avatar(for: person.user)
+            Text(name(of: person.user))
+                .foregroundStyle(theme.colors.mainText)
+                .lineLimit(1)
+                .frame(width: nameWidth, alignment: .leading)
+                .frame(minHeight: avatarSize)
+            emojiFlow(person.emojis)
         }
         .listRowBackground(Color.clear)
         .accessibilityElement(children: .ignore)
@@ -169,23 +168,18 @@ struct ReactionDetailsSheet: View {
     /// The line of the current user, always the first one: a "+" opens the system emoji keyboard to add a reaction,
     /// and each emoji they already gave is a button that takes it back.
     private var myRow: some View {
-        LabeledContent {
-            if canReact {
-                emojiStrip(myPerson?.emojis ?? [], tappable: true)
+        HStack(alignment: .top, spacing: 10) {
+            if let currentUser {
+                avatar(for: currentUser)
             } else {
-                emojiStrip(myPerson?.emojis ?? [])
+                letterAvatar(localization.reactionsYouText)
             }
-        } label: {
-            HStack(spacing: 10) {
-                if let currentUser {
-                    avatar(for: currentUser)
-                } else {
-                    letterAvatar(localization.reactionsYouText)
-                }
-                Text(localization.reactionsYouText)
-                    .foregroundStyle(theme.colors.mainText)
-                    .lineLimit(1)
-            }
+            Text(localization.reactionsYouText)
+                .foregroundStyle(theme.colors.mainText)
+                .lineLimit(1)
+                .frame(width: nameWidth, alignment: .leading)
+                .frame(minHeight: avatarSize)
+            emojiFlow(myPerson?.emojis ?? [], tappable: canReact)
         }
         .listRowBackground(Color.clear)
         .background(EmojiKeyboardField(isActive: $pickingEmoji) { emoji in
@@ -194,18 +188,11 @@ struct ReactionDetailsSheet: View {
     }
 
     /// The emojis of a person: on the right when they fit, in a strip that scrolls sideways when they do not.
-    private func emojiStrip(_ emojis: [String], tappable: Bool = false) -> some View {
-        ViewThatFits(in: .horizontal) {
+    private func emojiFlow(_ emojis: [String], tappable: Bool = false) -> some View {
+        FlowLayout(spacing: 6) {
             emojiRow(emojis, tappable: tappable)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-
-            ScrollView(.horizontal) {
-                emojiRow(emojis, tappable: tappable)
-                    .padding(.trailing, 16)
-            }
-            .scrollIndicators(.hidden)
-            .modifier(TrailingFadeModifier())
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private var plusButton: some View {
@@ -222,7 +209,7 @@ struct ReactionDetailsSheet: View {
 
     /// - Parameter tappable: the emojis are buttons that take the reaction back (the line of the current user)
     private func emojiRow(_ emojis: [String], tappable: Bool) -> some View {
-        HStack(spacing: 6) {
+        Group {
             if tappable {
                 plusButton
             }
@@ -325,19 +312,52 @@ struct ReactionDetailsSheet: View {
     }
 #endif
 
-/// Fades the right edge of a strip that scrolls sideways: there is more to scroll to. iOS 26 does it by itself.
-private struct TrailingFadeModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.scrollEdgeEffectStyle(.soft, for: .trailing)
-        } else {
-            content.mask(
-                LinearGradient(
-                    stops: [.init(color: .black, location: 0.82), .init(color: .clear, location: 1)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+/// Places its subviews left to right and breaks the line when they do not fit, as many lines as needed. Every line
+/// is aligned to the right, as the emojis were when they fitted in one line.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat
+
+    private func lines(_ subviews: Subviews, width: CGFloat) -> [[Subviews.Element]] {
+        var lines: [[Subviews.Element]] = [[]]
+        var used: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if used > 0, used + spacing + size.width > width {
+                lines.append([])
+                used = 0
+            }
+            lines[lines.count - 1].append(subview)
+            used += (used > 0 ? spacing : 0) + size.width
+        }
+        return lines
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        let rows = lines(subviews, width: width)
+        var height: CGFloat = 0
+        var widest: CGFloat = 0
+        for row in rows {
+            let sizes = row.map { $0.sizeThatFits(.unspecified) }
+            height += (sizes.map(\.height).max() ?? 0)
+            widest = max(widest, sizes.map(\.width).reduce(0, +) + spacing * CGFloat(max(row.count - 1, 0)))
+        }
+        height += spacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: proposal.width ?? widest, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in lines(subviews, width: bounds.width) {
+            let sizes = row.map { $0.sizeThatFits(.unspecified) }
+            let rowWidth = sizes.map(\.width).reduce(0, +) + spacing * CGFloat(max(row.count - 1, 0))
+            var x = bounds.maxX - rowWidth
+            let rowHeight = sizes.map(\.height).max() ?? 0
+            for (subview, size) in zip(row, sizes) {
+                subview.place(at: CGPoint(x: x, y: y + (rowHeight - size.height) / 2), anchor: .topLeading, proposal: .unspecified)
+                x += size.width + spacing
+            }
+            y += rowHeight + spacing
         }
     }
 }
