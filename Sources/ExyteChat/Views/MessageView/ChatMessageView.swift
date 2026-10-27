@@ -120,9 +120,7 @@ private struct PullToReplyContainer<Content: View>: View {
                     replyIcon
                 }
             }
-            .applyIf(enabled) {
-                $0.simultaneousGesture(gesture)
-            }
+            .modifier(PullGestureModifier(enabled: enabled, onChanged: pullChanged, onEnded: pullEnded, fallback: gesture))
     }
 
     /// the arrow that shows up behind the bubble while it is pulled, and fills in when letting go would reply
@@ -140,6 +138,38 @@ private struct PullToReplyContainer<Content: View>: View {
     }
 
     /// the bubble follows the finger, slower after the threshold
+    private func pullChanged(width rawWidth: CGFloat) {
+        if state.isHorizontal == nil {
+            state.isHorizontal = true
+            state.prepareHaptics()
+        }
+        let width = max(rawWidth, 0)
+        let pulled = width <= threshold ? width : threshold + (width - threshold) * 0.25
+        state.offset = min(pulled, maximum)
+        let passed = state.offset >= threshold
+        if passed != state.passedThreshold {
+            state.passedThreshold = passed
+            if passed { state.impact() }
+        }
+    }
+
+    private func pullEnded() {
+        let shouldReply = state.isHorizontal == true && state.passedThreshold
+        state.isHorizontal = nil
+        state.passedThreshold = false
+        withAnimation(bounce) {
+            state.offset = 0
+        }
+        if shouldReply {
+            // the keyboard and the quote in the text field come after the bounce, not together with it: both are heavy
+            // for the main thread and made the bounce stutter
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                onReply()
+            }
+        }
+    }
+
+    /// iOS 17 only (the minimum of the library): the SwiftUI drag
     private var gesture: some Gesture {
         DragGesture(minimumDistance: 10)
             .onChanged { value in
@@ -153,29 +183,91 @@ private struct PullToReplyContainer<Content: View>: View {
                     }
                 }
                 guard state.isHorizontal == true else { return }
-                let width = max(value.translation.width, 0)
-                let pulled = width <= threshold ? width : threshold + (width - threshold) * 0.25
-                state.offset = min(pulled, maximum)
-                let passed = state.offset >= threshold
-                if passed != state.passedThreshold {
-                    state.passedThreshold = passed
-                    if passed { state.impact() }
-                }
+                pullChanged(width: value.translation.width)
             }
-            .onEnded { _ in
-                let shouldReply = state.isHorizontal == true && state.passedThreshold
-                state.isHorizontal = nil
-                state.passedThreshold = false
-                withAnimation(bounce) {
-                    state.offset = 0
+            .onEnded { _ in pullEnded() }
+    }
+}
+
+/// isaCloud: from iOS 18 the pull is a UIKit pan that only begins sideways, so a drag up or down on the bubble reaches the list
+/// (the SwiftUI DragGesture made the list stop scrolling when the drag started on a bubble). iOS 17 keeps the SwiftUI drag.
+private struct PullGestureModifier<Fallback: Gesture>: ViewModifier {
+    let enabled: Bool
+    let onChanged: (CGFloat) -> Void
+    let onEnded: () -> Void
+    let fallback: Fallback
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if !enabled {
+            content
+        } else if #available(iOS 18.0, *) {
+            content.gesture(SidewaysPanGesture(onChanged: onChanged, onEnded: onEnded))
+        } else {
+            content.simultaneousGesture(fallback)
+        }
+    }
+}
+
+/// A pan that only begins when the finger goes to the right: anything else (a drag up or down, which is the list scrolling, or a
+/// drag from the left edge, which is the back gesture) never starts it, so the list gets the touch.
+@available(iOS 18.0, *)
+private struct SidewaysPanGesture: UIGestureRecognizerRepresentable {
+    let onChanged: (CGFloat) -> Void
+    let onEnded: () -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let recognizer = UIPanGestureRecognizer()
+        recognizer.delegate = context.coordinator
+        return recognizer
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator()
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        // the window is the space of the translation: the bubble moves with the finger, and so would its own space
+        switch recognizer.state {
+        case .began, .changed:
+            onChanged(recognizer.translation(in: nil).x)
+        case .ended, .cancelled, .failed:
+            onEnded()
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+            let velocity = pan.velocity(in: nil)
+            let startX = pan.location(in: nil).x - pan.translation(in: nil).x
+            return velocity.x > 0 && velocity.x > abs(velocity.y) * 1.5 && startX > 24
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+
+        /// From iOS 26 the navigation controller also has a back swipe that works anywhere on the screen: it waits for this pan to fail,
+        /// so a pull on a bubble replies and does not also go back
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldBeRequiredToFailBy other: UIGestureRecognizer
+        ) -> Bool {
+            guard #available(iOS 26.0, *) else { return false }
+            var responder: UIResponder? = gestureRecognizer.view
+            while let current = responder {
+                if let navigation = current as? UINavigationController {
+                    return navigation.interactiveContentPopGestureRecognizer === other
                 }
-                if shouldReply {
-                    // the keyboard and the quote in the text field come after the bounce, not together with it: both are heavy
-                    // for the main thread and made the bounce stutter
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        onReply()
-                    }
-                }
+                responder = current.next
             }
+            return false
+        }
     }
 }
