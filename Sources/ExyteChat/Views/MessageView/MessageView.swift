@@ -84,6 +84,21 @@ struct MessageView: View {
         return .vstack
     }
 
+    var reactionViewWidth: CGFloat {
+        struct Cache { static var value: CGFloat? }
+        if let value = Cache.value { return value }
+
+        let value = AttributedString("🙃️️️️").width(withConstrainedWidth: chatSize.width, font: params.font) + ReactionBubble.padding * 2
+
+        Cache.value = value
+        return value
+    }
+
+    /// isaCloud: the reactions go in the footer of the bubble (capsules) when the app asks for it, over the top corner of the bubble (round bubbles) otherwise
+    var reactionsBelowBubble: Bool {
+        params.reactionsBelowBubble
+    }
+
     var showAvatar: Bool {
         isDisplayingMessageMenu
             || positionInUserGroup == .single
@@ -147,8 +162,13 @@ struct MessageView: View {
     func bubbleView(_ message: Message) -> some View {
         VStack(
             alignment: message.user.isCurrentUser ? .leading : .trailing,
-            spacing: 0
+            spacing: reactionsBelowBubble ? 0 : -reactionViewWidth / 3
         ) {
+            if !reactionsBelowBubble && !isDisplayingMessageMenu && !message.reactions.isEmpty {
+                reactionsView(message)
+                    .zIndex(1)
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 if params.showUsername, !message.user.isCurrentUser {
                     Text(message.user.name)
@@ -201,13 +221,13 @@ struct MessageView: View {
 
                 // isaCloud: the reactions sit in the footer of the bubble, centered. The hidden copy reserves the room
                 // (and the width, for short messages); the visible one is laid over it
-                if !isDisplayingMessageMenu && !message.reactions.isEmpty {
+                if reactionsBelowBubble && !isDisplayingMessageMenu && !message.reactions.isEmpty {
                     reactionsFooterView(message)
                         .hidden()
                 }
             }
             .overlay(alignment: .bottom) {
-                if !isDisplayingMessageMenu && !message.reactions.isEmpty {
+                if reactionsBelowBubble && !isDisplayingMessageMenu && !message.reactions.isEmpty {
                     reactionsFooterView(message)
                 }
             }

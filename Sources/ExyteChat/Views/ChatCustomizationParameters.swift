@@ -77,6 +77,9 @@ struct MessageCustomizationParameters {
     var avatarSize: CGFloat = 32
     var tapAvatarClosure: ChatView.TapAvatarClosure?
     var avatarBuilder: ((User)->(AnyView))?
+
+    // isaCloud: reactions in the footer of the bubble (capsules) instead of round bubbles over its corner
+    var reactionsBelowBubble = false
 }
 
 struct InputViewCustomizationParameters {

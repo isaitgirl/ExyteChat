@@ -289,6 +289,15 @@ public extension ChatView {
         return view
     }
 
+    /// isaCloud: shows the reactions of a message in the footer of its bubble, as capsules (emoji and count together),
+    /// instead of round bubbles over the corner of the bubble
+    /// - Default is false
+    func reactionsBelowBubble(_ enabled: Bool) -> ChatView {
+        var view = self
+        view.messageCustomizationParameters.reactionsBelowBubble = enabled
+        return view
+    }
+
     func showUsername(_ show: Bool) -> ChatView {
         var view = self
         view.messageCustomizationParameters.showUsername = show
