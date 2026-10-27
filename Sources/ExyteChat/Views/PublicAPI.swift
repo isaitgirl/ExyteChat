@@ -269,6 +269,18 @@ public extension ChatView {
         return view
     }
 
+    /// isaCloud: pulling a message bubble to the right replies to it. The bubble follows the finger, gives a tap when it
+    /// goes past the point where letting go replies, and bounces back when released; then the text field gets the focus.
+    /// - Parameters:
+    ///   - activeFor: the messages that can be replied to this way
+    ///   - onReply: called when the bubble is let go past that point
+    func onSwipeToReply(activeFor: @escaping (Message) -> Bool = { _ in true }, onReply: @escaping (Message) -> Void) -> ChatView {
+        var view = self
+        view.chatCustomizationParameters.swipeToReply = onReply
+        view.chatCustomizationParameters.swipeToReplyActiveFor = activeFor
+        return view
+    }
+
     // MARK: - Built-in message view
 
     func showMessageTimeView(_ show: Bool) -> ChatView {

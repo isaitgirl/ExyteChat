@@ -33,6 +33,9 @@ struct ChatCustomizationParameters {
     var localization = ChatLocalization.defaultLocalization // these can be localized in the Localizable.strings files
     var reactionDelegate: ReactionDelegate?
     var listSwipeActions = ListSwipeActions()
+    // isaCloud: pulling a message to the right replies to it
+    var swipeToReply: ((Message) -> Void)?
+    var swipeToReplyActiveFor: (Message) -> Bool = { _ in true }
 }
 
 public struct ScrollToParams: Equatable {
