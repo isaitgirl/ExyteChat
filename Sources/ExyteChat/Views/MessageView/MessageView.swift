@@ -159,11 +159,6 @@ struct MessageView: View {
             alignment: message.user.isCurrentUser ? .leading : .trailing,
             spacing: -reactionViewWidth / 3
         ) {
-            if !isDisplayingMessageMenu && !message.reactions.isEmpty {
-                reactionsView(message)
-                    .zIndex(1)
-            }
-
             VStack(alignment: .leading, spacing: 4) {
                 if params.showUsername, !message.user.isCurrentUser {
                     Text(message.user.name)
@@ -212,6 +207,18 @@ struct MessageView: View {
                             .padding(.trailing, 12)
                             .padding(.bottom, 8)
                     }
+                }
+
+                // isaCloud: the reactions sit in the footer of the bubble, centered. The hidden copy reserves the room
+                // (and the width, for short messages); the visible one is laid over it
+                if !isDisplayingMessageMenu && !message.reactions.isEmpty {
+                    reactionsFooterView(message)
+                        .hidden()
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if !isDisplayingMessageMenu && !message.reactions.isEmpty {
+                    reactionsFooterView(message)
                 }
             }
             .padding(.top, (params.showUsername && !message.user.isCurrentUser) || message.attachments.isEmpty ? 8 : 0)

@@ -54,6 +54,54 @@ extension MessageView {
         .accessibilityAddTraits(.isButton)
     }
     
+    /// isaCloud: the reactions of the message as a row of native bordered capsule buttons, for the footer of the bubble.
+    /// Tapping any of them shows who reacted with what.
+    @ViewBuilder
+    func reactionsFooterView(_ message: Message, maxReactions: Int = 5) -> some View {
+        let groups = ReactionGroup.groups(of: message.reactions)
+        let shown = Array(groups.prefix(maxReactions))
+        let hidden = groups.count - shown.count
+        HStack(spacing: 6) {
+            ForEach(shown) { group in
+                reactionCapsule(
+                    group.count > 1 ? "\(group.emoji) \(group.count)" : group.emoji,
+                    in: message,
+                    isMine: group.containsCurrentUser
+                )
+            }
+            if hidden > 0 {
+                // the reactions that did not fit: one more capsule, it opens the same sheet
+                reactionCapsule("+\(hidden)", in: message, isMine: false)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: groups.map { "\($0.emoji) \($0.count)" }.joined(separator: ", ")))
+        .accessibilityAddTraits(.isButton)
+    }
+
+    /// one capsule of the footer: solid white on my pink bubbles, so it can be seen; gray on the others, pink for my own
+    @ViewBuilder
+    private func reactionCapsule(_ text: String, in message: Message, isMine: Bool) -> some View {
+        let button = Button {
+            viewModel.presentReactionDetails(for: message.id)
+        } label: {
+            Text(verbatim: text)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(message.user.isCurrentUser ? theme.colors.messageMyBG : theme.colors.mainText)
+                .lineLimit(1)
+                .fixedSize()
+        }
+        .buttonBorderShape(.capsule)
+        .controlSize(.mini)
+        if message.user.isCurrentUser {
+            button.buttonStyle(.borderedProminent).tint(.white)
+        } else {
+            button.buttonStyle(.bordered).tint(isMine ? theme.colors.messageMyBG : theme.colors.mainText)
+        }
+    }
+
     @ViewBuilder
     func overflowBubbleView(leadingSpacer: Bool, needsOverflowBubble: Bool, text: String, containsReactionFromCurrentUser: Bool) -> some View {
         if needsOverflowBubble {
@@ -114,7 +162,7 @@ struct ReactionBubble: View {
     @Environment(\.chatTheme) var theme
     
     let reaction: Reaction
-    /// how many people reacted with this emoji; a small badge with the count sits on the bubble when more than one
+    /// how many people reacted with this emoji; shown next to the emoji when more than one
     var count: Int = 1
     let font: UIFont
 
@@ -140,45 +188,45 @@ struct ReactionBubble: View {
         }
     }
     
+    /// a circle for one reaction, a capsule with the count next to the emoji for more
+    private var shape: AnyShape {
+        count > 1 ? AnyShape(Capsule()) : AnyShape(Circle())
+    }
+
     var body: some View {
-        Text(reaction.emoji ?? "?")
-            .font(Font(font))
-            .opacity(opacity)
-            .foregroundStyle(theme.colors.messageText(reaction.user.type))
-            .padding(ReactionBubble.padding)
-            .background(
-                ZStack {
-                    Circle()
-                        .fill(fillColor)
-                    // If the reaction is in flight, animate the stroke
-                    if reaction.status == .sending {
-                        Circle()
-                            .stroke(style: .init(lineWidth: 2, lineCap: .round, dash: [100, 50], dashPhase: phase))
-                            .fill(theme.colors.messageFriendBG)
-                            .onAppear {
-                                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) {
-                                    phase -= 150
-                                }
+        // isaCloud: the count sits in the same bubble as the emoji
+        HStack(spacing: 3) {
+            Text(reaction.emoji ?? "?")
+                .font(Font(font))
+            if count > 1 {
+                Text(verbatim: "\(count)")
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        .opacity(opacity)
+        .foregroundStyle(theme.colors.messageText(reaction.user.type))
+        .padding(ReactionBubble.padding)
+        .background(
+            ZStack {
+                shape
+                    .fill(fillColor)
+                // If the reaction is in flight, animate the stroke
+                if reaction.status == .sending {
+                    shape
+                        .stroke(style: .init(lineWidth: 2, lineCap: .round, dash: [100, 50], dashPhase: phase))
+                        .fill(theme.colors.messageFriendBG)
+                        .onAppear {
+                            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: false)) {
+                                phase -= 150
                             }
-                    // Otherwise just stroke the circle normally
-                    } else {
-                        Circle()
-                            .stroke(style: .init(lineWidth: 2))
-                            .fill(theme.colors.mainBG)
-                    }
-                }
-            )
-            // isaCloud: the count sits on the top corner, so it does not cover the neighbour bubble or the message text
-            .overlay(alignment: .topTrailing) {
-                if count > 1 {
-                    Text(verbatim: "\(count)")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(theme.colors.mainBG)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Circle().fill(theme.colors.mainText))
-                        .offset(x: 4, y: -4)
+                        }
+                // Otherwise just stroke the shape normally
+                } else {
+                    shape
+                        .stroke(style: .init(lineWidth: 2))
+                        .fill(theme.colors.mainBG)
                 }
             }
+        )
     }
 }
