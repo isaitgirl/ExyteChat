@@ -123,7 +123,10 @@ struct MessageMenu<MainButton: View, ActionEnum: MessageMenuAction>: View {
     
     private var chatViewFrame: CGRect {
         let originX = max(0, windowSize().width - chatSize.width)
-        return CGRect(x: originX, y: 0, width: chatSize.width, height: chatSize.height)
+        // isaCloud: the menu covers the whole window, so its height is the window's. `chatSize.height` is the height of the chat
+        // above the keyboard when the menu is opened with the keyboard up (after replying, for instance), and the menu was
+        // squeezed into that, with its actions cut off and needing to be scrolled.
+        return CGRect(x: originX, y: 0, width: chatSize.width, height: max(chatSize.height, windowSize().height))
     }
 
     var maxEntireHeight: CGFloat {
