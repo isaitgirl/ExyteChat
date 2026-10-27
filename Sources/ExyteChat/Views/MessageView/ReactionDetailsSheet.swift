@@ -92,16 +92,15 @@ struct ReactionDetailsSheet: View {
                     .padding(.bottom, 8)
             }
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    // the line of the current user is always the first one, even when they have not reacted
-                    myRow
-                    ForEach(visiblePeople.filter { !$0.user.isCurrentUser }) { person in
-                        row(for: person)
-                    }
+            List {
+                // the line of the current user is always the first one, even when they have not reacted
+                myRow
+                ForEach(visiblePeople.filter { !$0.user.isCurrentUser }) { person in
+                    row(for: person)
                 }
-                .padding(.horizontal, 16)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(theme.colors.mainBG)
@@ -137,24 +136,12 @@ struct ReactionDetailsSheet: View {
     }
 
     private func chip(text: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Toggle(isOn: Binding(get: { isSelected }, set: { _ in action() })) {
             Text(text)
-                .font(.subheadline)
-                .foregroundStyle(theme.colors.mainText)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    Capsule().fill(isSelected ? theme.colors.messageMyBG.opacity(0.25) : Color.clear)
-                )
-                .overlay(
-                    Capsule().stroke(
-                        isSelected ? theme.colors.messageMyBG : theme.colors.mainText.opacity(0.25),
-                        lineWidth: 1
-                    )
-                )
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .toggleStyle(.button)
+        .buttonBorderShape(.capsule)
+        .tint(theme.colors.messageMyBG)
     }
 
     // MARK: - list
@@ -164,18 +151,17 @@ struct ReactionDetailsSheet: View {
     }
 
     private func row(for person: PersonReactions) -> some View {
-        HStack(spacing: 10) {
-            avatar(for: person.user)
-
-            Text(name(of: person.user))
-                .font(.body)
-                .foregroundStyle(theme.colors.mainText)
-                .lineLimit(1)
-                .frame(width: nameWidth, alignment: .leading)
-
+        LabeledContent {
             emojiStrip(person.emojis)
+        } label: {
+            HStack(spacing: 10) {
+                avatar(for: person.user)
+                Text(name(of: person.user))
+                    .foregroundStyle(theme.colors.mainText)
+                    .lineLimit(1)
+            }
         }
-        .padding(.vertical, 8)
+        .listRowBackground(Color.clear)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("\(name(of: person.user)): \(person.emojis.joined(separator: ", "))"))
     }
@@ -183,26 +169,25 @@ struct ReactionDetailsSheet: View {
     /// The line of the current user, always the first one: a "+" opens the system emoji keyboard to add a reaction,
     /// and each emoji they already gave is a button that takes it back.
     private var myRow: some View {
-        HStack(spacing: 10) {
-            if let currentUser {
-                avatar(for: currentUser)
-            } else {
-                letterAvatar(localization.reactionsYouText)
-            }
-
-            Text(localization.reactionsYouText)
-                .font(.body)
-                .foregroundStyle(theme.colors.mainText)
-                .lineLimit(1)
-                .frame(width: nameWidth, alignment: .leading)
-
+        LabeledContent {
             if canReact {
                 emojiStrip(myPerson?.emojis ?? [], tappable: true)
             } else {
                 emojiStrip(myPerson?.emojis ?? [])
             }
+        } label: {
+            HStack(spacing: 10) {
+                if let currentUser {
+                    avatar(for: currentUser)
+                } else {
+                    letterAvatar(localization.reactionsYouText)
+                }
+                Text(localization.reactionsYouText)
+                    .foregroundStyle(theme.colors.mainText)
+                    .lineLimit(1)
+            }
         }
-        .padding(.vertical, 8)
+        .listRowBackground(Color.clear)
         .background(EmojiKeyboardField(isActive: $pickingEmoji) { emoji in
             onReact(emoji)
         })
@@ -219,14 +204,7 @@ struct ReactionDetailsSheet: View {
                     .padding(.trailing, 16)
             }
             .scrollIndicators(.hidden)
-            // fades the right edge: there is more to scroll to
-            .mask(
-                LinearGradient(
-                    stops: [.init(color: .black, location: 0.82), .init(color: .clear, location: 1)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+            .modifier(TrailingFadeModifier())
         }
     }
 
@@ -236,11 +214,10 @@ struct ReactionDetailsSheet: View {
         } label: {
             Image(systemName: "plus")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(theme.colors.messageMyBG)
-                .frame(width: 34, height: 34)
-                .overlay(Circle().stroke(theme.colors.messageMyBG, style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .tint(theme.colors.messageMyBG)
     }
 
     /// - Parameter tappable: the emojis are buttons that take the reaction back (the line of the current user)
@@ -253,17 +230,23 @@ struct ReactionDetailsSheet: View {
                 // while filtering, the emoji that was picked stands out in every line
                 let highlighted = emoji == selectedEmoji
                 if tappable {
-                    Button {
+                    let button = Button {
                         onReact(emoji)
                     } label: {
                         Text(emoji)
-                            .font(.title2)
-                            .frame(width: 42, height: 42)
-                            .background(Circle().fill(theme.colors.messageMyBG.opacity(highlighted ? 0.3 : 0.15)))
-                            .overlay(Circle().stroke(theme.colors.messageMyBG, lineWidth: 1.5))
+                            .font(.title3)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text(emoji))
+                    if highlighted {
+                        button.buttonStyle(.borderedProminent)
+                            .buttonBorderShape(.circle)
+                            .tint(theme.colors.messageMyBG)
+                            .accessibilityLabel(Text(emoji))
+                    } else {
+                        button.buttonStyle(.bordered)
+                            .buttonBorderShape(.circle)
+                            .tint(theme.colors.messageMyBG)
+                            .accessibilityLabel(Text(emoji))
+                    }
                 } else {
                     Text(emoji)
                         .font(.title2)
@@ -341,3 +324,20 @@ struct ReactionDetailsSheet: View {
         )
     }
 #endif
+
+/// Fades the right edge of a strip that scrolls sideways: there is more to scroll to. iOS 26 does it by itself.
+private struct TrailingFadeModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .trailing)
+        } else {
+            content.mask(
+                LinearGradient(
+                    stops: [.init(color: .black, location: 0.82), .init(color: .clear, location: 1)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+        }
+    }
+}
