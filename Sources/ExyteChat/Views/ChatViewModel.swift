@@ -39,6 +39,9 @@ final class ChatViewModel: ObservableObject {
     var didUpdateAttachmentStatus: (AttachmentUploadUpdate) -> Void = { _ in }
     var inputViewModel: InputViewModel?
     var globalFocusState: GlobalFocusState?
+    // isaCloud: pulling a message to the right replies to it (nil when the app does not support it)
+    var swipeToReply: ((Message) -> Void)?
+    var swipeToReplyActiveFor: (Message) -> Bool = { _ in true }
 
     let liveLocationBroadcaster = LiveLocationBroadcaster()
     private var liveLocationCancellable: AnyCancellable?

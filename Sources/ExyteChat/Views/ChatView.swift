@@ -382,6 +382,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             viewModel.didSendMessage = didSendMessage
             viewModel.inputViewModel = inputViewModel
             viewModel.globalFocusState = globalFocusState
+            viewModel.swipeToReply = chatCustomizationParameters.swipeToReply
+            viewModel.swipeToReplyActiveFor = chatCustomizationParameters.swipeToReplyActiveFor
             if chatCustomizationParameters.autoFocusTextInputOnChatOpen {
                 viewModel.focusTheInputTextView()
             }
