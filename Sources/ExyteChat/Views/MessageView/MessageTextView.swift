@@ -27,15 +27,9 @@ struct MessageTextView: View {
         if !attributedText.characters.isEmpty {
             VStack(alignment: .leading) {
                 if attributedText.containsQuote {
-                    // isaCloud: a text with quotes is drawn block by block (see AttributedString+Quote.swift)
-                    ForEach(Array(attributedText.textBlocks.enumerated()), id: \.offset) { _, block in
-                        if block.isQuote {
-                            quoteView(block.text)
-                        } else {
-                            Text(block.text)
-                                .foregroundStyle(theme.colors.messageText(userType))
-                        }
-                    }
+                    // isaCloud: a text with quotes is drawn as a tree of text and quotes, nested quotes inside their quote
+                    // (see AttributedString+Quote.swift)
+                    nodesView(attributedText.textTree)
                 } else {
                     Text(attributedText)
                         .foregroundStyle(theme.colors.messageText(userType))
@@ -58,16 +52,33 @@ struct MessageTextView: View {
 
 extension MessageTextView {
 
-    /// isaCloud: a quote: its text with ONE bar on the left, as tall as the whole quote, however many lines it takes.
-    private func quoteView(_ text: AttributedString) -> some View {
+    /// isaCloud: the text and quotes of a message, one under the other.
+    private func nodesView(_ nodes: [TextNode]) -> AnyView {
+        AnyView(
+            VStack(alignment: .leading) {
+                ForEach(Array(nodes.enumerated()), id: \.offset) { _, node in
+                    switch node {
+                    case .text(let text):
+                        Text(text)
+                            .foregroundStyle(theme.colors.messageText(userType))
+                    case .quote(let children):
+                        quoteView(children)
+                    }
+                }
+            }
+        )
+    }
+
+    /// isaCloud: a quote: its content with ONE bar on the left, as tall as the whole quote, however many lines it takes and
+    /// however many quotes are nested in it (they have their own bar inside this one).
+    private func quoteView(_ children: [TextNode]) -> some View {
         let color = theme.colors.messageText(userType)
         return HStack(alignment: .top, spacing: 8) {
-            // the bar takes the height of the text beside it, because of the fixedSize below
+            // the bar takes the height of the content beside it, because of the fixedSize below
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(color.opacity(0.6))
                 .frame(width: 3)
-            Text(text)
-                .foregroundStyle(color)
+            nodesView(children)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
