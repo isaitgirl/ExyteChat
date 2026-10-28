@@ -116,6 +116,11 @@ struct MessageView: View {
         return positionInUserGroup.isTop ? 8 : 4
     }
 
+    // isaCloud: a message with only images/videos (no text) shows its time below the bubble
+    var timeBelowMedia: Bool {
+        !message.attachments.isEmpty && !message.hasText
+    }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: MessageView.horizontalSpacing) {
             if params.showAvatar, !message.user.isCurrentUser {
@@ -135,6 +140,12 @@ struct MessageView: View {
                 }
 
                 bubbleView(message)
+
+                // isaCloud: media-only messages show the time below the bubble, not inside the photo
+                if timeBelowMedia && params.showTimeView {
+                    MessageTimeBelowView(text: message.formattedDate, encrypted: message.encrypted)
+                        .font(Font(params.timeFont))
+                }
             }
 
             if message.user.isCurrentUser, let status = message.status {
@@ -185,7 +196,7 @@ struct MessageView: View {
                 }
 
                 if !message.attachments.isEmpty {
-                    attachmentsView(message)
+                    attachmentsView(message, showTimeInside: !timeBelowMedia)
                 }
 
                 if !message.files.isEmpty {
@@ -195,7 +206,8 @@ struct MessageView: View {
                             .padding(.top, 4)
                     }
 
-                    if !message.hasText {
+                    // isaCloud: skip the in-bubble time when it is already shown below the media
+                    if !message.hasText && !timeBelowMedia {
                         HStack {
                             Spacer()
                             messageTimeView()
@@ -309,7 +321,7 @@ struct MessageView: View {
     }
 
     @ViewBuilder
-    func attachmentsView(_ message: Message) -> some View {
+    func attachmentsView(_ message: Message, showTimeInside: Bool = true) -> some View {
         AttachmentsGrid(attachments: message.attachments, isCurrentUser: message.user.isCurrentUser) { attachment, isCancel in
             if isCancel {
                 let update = AttachmentUploadUpdate(
@@ -328,7 +340,8 @@ struct MessageView: View {
                 .padding(.horizontal, MessageView.attachmentPadding)
         }
         .overlay(alignment: .bottomTrailing) {
-            if !message.hasText {
+            // isaCloud: the time capsule inside the photo only when showTimeInside (see timeBelowMedia)
+            if showTimeInside && !message.hasText {
                 messageTimeView(needsCapsule: true)
                     .padding(4)
             }

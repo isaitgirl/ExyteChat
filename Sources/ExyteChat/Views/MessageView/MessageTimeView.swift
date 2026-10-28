@@ -22,6 +22,23 @@ struct MessageTimeView: View {
     }
 }
 
+// isaCloud: time shown below a media-only bubble, same style as the GIF footer (GifPickerView.timeView)
+struct MessageTimeBelowView: View {
+    let text: String
+    let encrypted: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if encrypted {
+                Image(systemName: "lock.fill")
+            }
+            Text(text)
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 4)
+    }
+}
+
 struct MessageTimeWithCapsuleView: View {
     let text: String
     let isCurrentUser: Bool
