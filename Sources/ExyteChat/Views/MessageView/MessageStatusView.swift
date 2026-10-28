@@ -15,9 +15,11 @@ struct MessageStatusView: View {
         Group {
             switch status {
             case .sending:
-                theme.images.message.sending
-                    .resizable()
-                    .foregroundColor(theme.colors.statusGray)
+                // isaCloud: a spinner in place of the static clock, so a message that takes time to leave shows that it is working
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.mini)
+                    .tint(theme.colors.statusGray)
             case .sent:
                 theme.images.message.sent
                     .resizable()
