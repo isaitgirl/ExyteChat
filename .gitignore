@@ -86,7 +86,8 @@ playground.xcworkspace
 # Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
 # Packages/
 # Package.pins
-Package.resolved
+# isaCloud: o Package.resolved é versionado de propósito (trava as versões das
+# dependências do fork e deixa o build reprodutível); o resto segue o upstream.
 .build/
 # Add this line if you want to avoid checking in Xcode SPM integration.
 # .swiftpm/xcode
