@@ -120,12 +120,13 @@ extension MessageView {
                 reactionCapsule(
                     group.count > 1 ? "\(group.emoji) \(group.count)" : group.emoji,
                     in: message,
-                    isMine: group.containsCurrentUser
+                    isMine: group.containsCurrentUser,
+                    onBubble: hasBubbleBackground
                 )
             }
             if hidden > 0 {
                 // the reactions that did not fit: one more capsule, it opens the same sheet
-                reactionCapsule("+\(hidden)", in: message, isMine: false)
+                reactionCapsule("+\(hidden)", in: message, isMine: false, onBubble: hasBubbleBackground)
             }
         }
         .padding(.horizontal, 8)
@@ -135,22 +136,30 @@ extension MessageView {
         .accessibilityAddTraits(.isButton)
     }
 
-    /// one capsule of the footer: solid white on my pink bubbles, so it can be seen; gray on the others, pink for my own
+    /// one capsule of the footer. isaCloud: two palettes, by what is behind the capsule.
+    /// On a bubble (text, files or a gray bubble): solid white on my pink bubbles, so it can be seen; gray on the others, pink for my own.
+    /// Without a bubble (media only, the capsule sits on the white chat background): gray for all, pink with pink text for my own reaction.
     @ViewBuilder
-    private func reactionCapsule(_ text: String, in message: Message, isMine: Bool) -> some View {
+    private func reactionCapsule(_ text: String, in message: Message, isMine: Bool, onBubble: Bool) -> some View {
         let button = Button {
             viewModel.presentReactionDetails(for: message.id)
         } label: {
             Text(verbatim: text)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(message.user.isCurrentUser ? theme.colors.messageMyBG : theme.colors.mainText)
+                .foregroundStyle(onBubble
+                    ? (message.user.isCurrentUser ? theme.colors.messageMyBG : theme.colors.mainText)
+                    : (isMine ? theme.colors.messageMyBG : theme.colors.mainText))
                 .lineLimit(1)
                 .fixedSize()
         }
         .buttonBorderShape(.capsule)
         .controlSize(.mini)
-        if message.user.isCurrentUser {
-            button.buttonStyle(.borderedProminent).tint(.white)
+        if onBubble {
+            if message.user.isCurrentUser {
+                button.buttonStyle(.borderedProminent).tint(.white)
+            } else {
+                button.buttonStyle(.bordered).tint(isMine ? theme.colors.messageMyBG : theme.colors.mainText)
+            }
         } else {
             button.buttonStyle(.bordered).tint(isMine ? theme.colors.messageMyBG : theme.colors.mainText)
         }
