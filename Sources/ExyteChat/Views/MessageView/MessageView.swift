@@ -129,6 +129,11 @@ struct MessageView: View {
         !message.attachments.isEmpty && !message.hasText
     }
 
+    // isaCloud: true when the bubble draws a background (the same test as bubbleBackground); a media-only message has none
+    var hasBubbleBackground: Bool {
+        (params.showUsername && !message.user.isCurrentUser) || message.hasText || message.recording != nil || !message.files.isEmpty
+    }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: MessageView.horizontalSpacing) {
             if params.showAvatar, !message.user.isCurrentUser {
