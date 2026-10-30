@@ -326,6 +326,13 @@ public extension ChatView {
         return view
     }
 
+    // isaCloud: the font of the time under the messages (the library's default is 10 pt scaled by the system size)
+    func setMessageTimeFont(_ font: UIFont) -> ChatView {
+        var view = self
+        view.messageCustomizationParameters.timeFont = font
+        return view
+    }
+
     func checkFileSizeClosure(_ closure: @escaping (File) -> Void) -> ChatView {
         var view = self
         view.messageCustomizationParameters.checkFileSizeClosure = closure
