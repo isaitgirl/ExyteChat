@@ -38,6 +38,12 @@ struct MessageView: View {
         case hstack, vstack, overlay
     }
 
+    // isaCloud: room taken by the lock that MessageTimeView draws before the time: the symbol at the time font, plus the 4 pt spacing of that HStack
+    static func lockIconWidth(font: UIFont) -> CGFloat {
+        let symbolWidth = UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(font: font))?.size.width ?? 0
+        return symbolWidth + 4
+    }
+
     var additionalMediaInset: CGFloat {
         message.attachments.count > 1 ? MessageView.attachmentPadding * 2 : 0
     }
@@ -73,7 +79,9 @@ struct MessageView: View {
         let lastLineWidth = text.lastLineWidth(labelWidth: maxWidth, font: params.font)
         let numberOfLines = text.numberOfLines(labelWidth: maxWidth, font: params.font)
 
-        let timeWidth = AttributedString(message.formattedDate).width(withConstrainedWidth: maxWidth, font: params.timeFont) + MessageView.timeViewTextPadding * 2
+        // isaCloud: an encrypted message also shows the lock before the time (MessageTimeView), so it takes room too
+        let lockWidth = message.encrypted ? MessageView.lockIconWidth(font: params.timeFont) : 0
+        let timeWidth = AttributedString(message.formattedDate).width(withConstrainedWidth: maxWidth, font: params.timeFont) + MessageView.timeViewTextPadding * 2 + lockWidth
 
         if numberOfLines == 1, finalWidth + CGFloat(timeWidth) < maxWidth {
             return .hstack
@@ -499,7 +507,6 @@ struct MessageView: View {
                 case .hstack:
                     HStack(alignment: .lastTextBaseline, spacing: 0) {
                         messageView
-                            .lineLimit(1)
                         if !message.attachments.isEmpty || !message.files.isEmpty {
                             Spacer()
                         }
