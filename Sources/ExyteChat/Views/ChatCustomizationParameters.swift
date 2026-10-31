@@ -80,6 +80,9 @@ struct MessageCustomizationParameters {
 
     // isaCloud: reactions in the footer of the bubble (capsules) instead of round bubbles over its corner
     var reactionsBelowBubble = false
+
+    // isaCloud: the time (and the lock) always on its own line under the text, as under the media, instead of beside the last line
+    var timeAlwaysBelowText = false
 }
 
 struct InputViewCustomizationParameters {

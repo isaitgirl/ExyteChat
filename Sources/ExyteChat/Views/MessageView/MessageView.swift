@@ -49,6 +49,10 @@ struct MessageView: View {
     }
 
     var timeViewArrangement: TimeViewArrangement {
+        // isaCloud: asked by the app, the time never shares the line with the text
+        if params.timeAlwaysBelowText {
+            return .vstack
+        }
         let text = message.attributedText
         if !text.urls.isEmpty && params.linkPreviewLimit > 0 {
             return .vstack

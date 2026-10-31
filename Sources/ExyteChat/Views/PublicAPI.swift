@@ -298,6 +298,15 @@ public extension ChatView {
         return view
     }
 
+    /// isaCloud: puts the time (and the lock) of a text message always on its own line under the text, as under the media,
+    /// instead of beside the last line when it fits
+    /// - Default is false
+    func timeAlwaysBelowText(_ enabled: Bool) -> ChatView {
+        var view = self
+        view.messageCustomizationParameters.timeAlwaysBelowText = enabled
+        return view
+    }
+
     func showUsername(_ show: Bool) -> ChatView {
         var view = self
         view.messageCustomizationParameters.showUsername = show
