@@ -21,7 +21,14 @@ extension AttributedString {
         for run in str.runs {
             str[run.range].setAttributes(AttributeContainer([.font: font.applyingInlinePresentationIntent(run.inlinePresentationIntent)]))
         }
-        return NSAttributedString(str)
+        // isaCloud: `Text` avoids a last line with a single short word (it pushes the word before it down), but the measure
+        // breaks lines in the plain way. The two disagreed on where the last line starts, so a time placed after what the measure
+        // took for the last line landed on top of the text. `.pushOut` is the strategy `Text` uses.
+        let result = NSMutableAttributedString(str)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakStrategy = .pushOut
+        result.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: result.length))
+        return result
     }
 
     public func lastLineWidth(labelWidth: CGFloat, font: UIFont) -> CGFloat {
