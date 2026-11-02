@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
@@ -16,10 +17,33 @@ struct ShareSheet: UIViewControllerRepresentable {
 }
 
 enum AttachmentSharing {
+    // isaCloud: the app caches files with the hex encoded mime type as extension, which the share sheet doesn't recognize
+    // (no "Save Image" / "Save Video"): share a temporary copy with the real extension instead
+    private static func localFileWithKnownExtension(for attachment: Attachment) -> URL {
+        let url = attachment.full
+        if let known = UTType(filenameExtension: url.pathExtension), !known.isDynamic {
+            return url
+        }
+        guard let mimeType = attachment.mimeType,
+              let fileExtension = UTType(mimeType: mimeType)?.preferredFilenameExtension else {
+            return url
+        }
+        let destinationURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(fileExtension)
+        do {
+            try FileManager.default.copyItem(at: url, to: destinationURL)
+            return destinationURL
+        } catch {
+            print("[AttachmentSharing] Failed to copy attachment for sharing: \(error)")
+            return url
+        }
+    }
+
     /// Resolves a local, shareable file URL for an attachment, downloading it first if it's remote.
     static func prepareForSharing(_ attachment: Attachment) async -> URL? {
         if attachment.full.isFileURL {
-            return attachment.full
+            return localFileWithKnownExtension(for: attachment)
         }
 
         do {
