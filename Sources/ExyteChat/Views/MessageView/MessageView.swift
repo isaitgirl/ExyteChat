@@ -145,18 +145,23 @@ struct MessageView: View {
             }
 
             VStack(alignment: message.user.isCurrentUser ? .trailing : .leading, spacing: 2) {
-                if !isDisplayingMessageMenu, let reply = message.replyMessage?.toMessage() {
-                    replyBubbleView(reply)
-                        .opacity(theme.style.replyOpacity)
-                        .padding(message.user.isCurrentUser ? .trailing : .leading, 10)
-                        .overlay(alignment: message.user.isCurrentUser ? .trailing : .leading) {
-                            Capsule()
-                                .foregroundColor(theme.colors.mainTint)
-                                .frame(width: 2)
-                        }
-                }
+                VStack(alignment: message.user.isCurrentUser ? .trailing : .leading, spacing: 2) {
+                    if !isDisplayingMessageMenu, let reply = message.replyMessage?.toMessage() {
+                        replyBubbleView(reply)
+                            .opacity(theme.style.replyOpacity)
+                            .padding(message.user.isCurrentUser ? .trailing : .leading, 10)
+                            .overlay(alignment: message.user.isCurrentUser ? .trailing : .leading) {
+                                Capsule()
+                                    .foregroundColor(theme.colors.mainTint)
+                                    .frame(width: 2)
+                            }
+                    }
 
-                bubbleView(message)
+                    bubbleView(message)
+                }
+                // isaCloud: the bubble (quote, content and reactions) is what the long press of UIList opens the menu on;
+                // the time below the media, the avatar and the status stay out
+                .reportsMessageBubbleFrame()
 
                 // isaCloud: media-only messages show the time below the bubble, not inside the photo
                 if timeBelowMedia && params.showTimeView {
@@ -164,8 +169,6 @@ struct MessageView: View {
                         .font(Font(params.timeFont))
                 }
             }
-            // isaCloud: the bubble (quote, content and reactions) is what the long press of UIList opens the menu on; the avatar and the status stay out
-            .reportsMessageBubbleFrame()
 
             if message.user.isCurrentUser, let status = message.status {
                 MessageStatusView(status: status) {
