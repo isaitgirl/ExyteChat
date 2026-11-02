@@ -76,6 +76,17 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         transaction.updateQueue = updateQueue
         chatParams.onTransactionReady?(transaction)
 
+        // isaCloud: the message menu opens from a UIKit long press on the table. SwiftUI's onLongPressGesture
+        // inside the cell ignores minimumDuration here and waits ~0.6 s (see the cell's applyIf below)
+        if chatParams.showMessageMenuOnLongPress {
+            let longPress = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:)))
+            longPress.minimumPressDuration = 0.15
+            longPress.allowableMovement = 10
+            longPress.cancelsTouchesInView = true // the SwiftUI cell must not also get the touch (media/link would open on release)
+            longPress.delegate = context.coordinator
+            tableView.addGestureRecognizer(longPress)
+        }
+
         return tableView
     }
 
@@ -469,7 +480,7 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         )
     }
 
-    class Coordinator: NSObject, UITableViewDataSource, UITableViewDelegate {
+    class Coordinator: NSObject, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate {
 
         @ObservedObject var viewModel: ChatViewModel
         @ObservedObject var inputViewModel: InputViewModel
@@ -578,6 +589,31 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                 dataRow = indexPath.row
             }
             return sections[indexPath.section].rows[dataRow]
+        }
+
+        // MARK: - message menu long press
+
+        @objc func handleLongPress(_ g: UILongPressGestureRecognizer) {
+            guard g.state == .began,
+                  let tableView = g.view as? UITableView,
+                  let indexPath = tableView.indexPathForRow(at: g.location(in: tableView)),
+                  indexPath != lastReadIndicatorIndexPath,
+                  let row = messageRow(at: indexPath) else { return }
+            impactGenerator.impactOccurred()
+            viewModel.messageMenuRow = row
+        }
+
+        // isaCloud: wake the haptic engine at touch down, otherwise the first vibration comes late
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            if gestureRecognizer is UILongPressGestureRecognizer {
+                impactGenerator.prepare()
+            }
+            return true
+        }
+
+        // the long press must not block scroll or the SwiftUI gestures of the cells
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
         }
 
         // MARK: - headers/footers
@@ -696,13 +732,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                     $0.simultaneousGesture(
                         TapGesture().onEnded { } // add empty tap to prevent iOS17 scroll breaking bug (drag on cells stops working)
                     )
-                    // isaCloud: the system default (0.5 s, felt as ~0.6 s inside the list) is slower than the other chat apps: open the menu sooner
-                    .onLongPressGesture(minimumDuration: 0.3) {
-                        // Trigger haptic feedback
-                        self.impactGenerator.impactOccurred()
-                        // Launch the message menu
-                        self.viewModel.messageMenuRow = row
-                    }
+                    // isaCloud: the long press is a UIKit recognizer on the table (see makeUIView): SwiftUI's onLongPressGesture
+                    // ignored minimumDuration inside the list (~0.6 s)
                 }
             }
             .minSize(width: 0, height: 0)
