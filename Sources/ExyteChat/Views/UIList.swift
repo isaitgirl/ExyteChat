@@ -611,6 +611,16 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             return true
         }
 
+        // isaCloud: the menu opens only on the message (bubble, photo, link...), not on the empty space of the row beside it:
+        // a touch that lands on the table, on the cell or on its content view itself does not begin the long press
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard gestureRecognizer is UILongPressGestureRecognizer, let tableView = gestureRecognizer.view as? UITableView else { return true }
+            let location = gestureRecognizer.location(in: tableView)
+            guard let hit = tableView.hitTest(location, with: nil) else { return false }
+            let cell = tableView.indexPathForRow(at: location).flatMap { tableView.cellForRow(at: $0) }
+            return hit !== tableView && hit !== cell && hit !== cell?.contentView
+        }
+
         // the long press must not block scroll or the SwiftUI gestures of the cells
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             true
