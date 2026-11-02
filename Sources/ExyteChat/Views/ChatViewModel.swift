@@ -61,21 +61,27 @@ final class ChatViewModel: ObservableObject {
         liveLocationBroadcaster.finish()
     }
 
+    // isaCloud: a tap on a message is ignored while its menu is open. The tap of a photo, GIF, video or link fires
+    // when the finger lifts after the long press that opened the menu; the presentation would wait behind the menu
+    // and show up when the menu closes
     func presentReactionDetails(for messageId: String) {
+        guard messageMenuRow == nil else { return }
         reactionDetailsItem = ReactionDetailsItem(id: messageId)
     }
 
     func presentAttachmentFullScreen(_ attachment: Attachment) {
+        guard messageMenuRow == nil else { return }
         fullscreenAttachmentItem = attachment
         fullscreenAttachmentPresented = true
     }
-    
+
     func dismissAttachmentFullScreen() {
         fullscreenAttachmentPresented = false
         fullscreenAttachmentItem = nil
     }
 
     func presentFullscreenLocation(_ messageId: String) {
+        guard messageMenuRow == nil else { return }  // isaCloud: see presentAttachmentFullScreen
         fullscreenLocationMessageId = messageId
         fullscreenLocationPresented = true
     }
