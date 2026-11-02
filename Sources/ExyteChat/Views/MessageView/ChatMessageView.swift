@@ -128,7 +128,8 @@ private struct PullToReplyContainer<Content: View>: View {
         let progress = min(state.offset / threshold, 1)
         return Image(systemName: "arrowshape.turn.up.left.fill")
             .font(.body)
-            .foregroundStyle(state.passedThreshold ? Color.white : Color.secondary)
+            //isaCloud: the text color of my bubble (white by default) on the circle of the bubble color
+            .foregroundStyle(state.passedThreshold ? theme.colors.messageMyText : Color.secondary)
             .frame(width: 34, height: 34)
             .background(Circle().fill(state.passedThreshold ? theme.colors.messageMyBG : Color.secondary.opacity(0.15)))
             .scaleEffect(0.5 + 0.5 * progress)

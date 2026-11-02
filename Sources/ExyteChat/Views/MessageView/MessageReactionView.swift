@@ -137,7 +137,7 @@ extension MessageView {
     }
 
     /// one capsule of the footer. isaCloud: two palettes, by what is behind the capsule.
-    /// On a bubble (text, files or a gray bubble): solid white on my pink bubbles, so it can be seen; gray on the others, pink for my own.
+    /// On a bubble (text, files or a gray bubble): solid in the text color of my bubble (white by default) on my bubbles, so it can be seen; gray on the others, pink for my own.
     /// Without a bubble (media only, the capsule sits on the white chat background): gray for all, pink with pink text for my own reaction.
     @ViewBuilder
     private func reactionCapsule(_ text: String, in message: Message, isMine: Bool, onBubble: Bool) -> some View {
@@ -156,7 +156,8 @@ extension MessageView {
         .controlSize(.mini)
         if onBubble {
             if message.user.isCurrentUser {
-                button.buttonStyle(.borderedProminent).tint(.white)
+                //isaCloud: the color of the text of my bubble (white by default), so it still stands out when the bubble has another color
+                button.buttonStyle(.borderedProminent).tint(theme.colors.messageMyText)
             } else {
                 button.buttonStyle(.bordered).tint(isMine ? theme.colors.messageMyBG : theme.colors.mainText)
             }
