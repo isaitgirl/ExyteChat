@@ -21,8 +21,10 @@ struct MessageBubbleFrameKey: PreferenceKey {
     }
 }
 
-extension View {
-    /// isaCloud: reports the frame of this view as the bubble of the message (see MessageBubbleFrameKey)
+public extension View {
+    /// isaCloud: reports the frame of this view as the bubble of the message, for the long press of the list (see MessageBubbleFrameKey).
+    /// The app applies it to the bubble of its own message builders (GIF); the views of MessageView report it already.
+    /// The avatar and the status must stay out of the view it is applied to.
     func reportsMessageBubbleFrame() -> some View {
         background(
             GeometryReader { proxy in
