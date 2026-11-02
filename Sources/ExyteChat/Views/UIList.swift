@@ -623,10 +623,9 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             let location = gestureRecognizer.location(in: tableView)
             guard let indexPath = tableView.indexPathForRow(at: location),
                   let row = messageRow(at: indexPath),
-                  let cell = tableView.cellForRow(at: indexPath),
                   let frame = bubbleFrames[row.id] else { return true }
-            let hostingView = cell.contentView.subviews.first ?? cell.contentView
-            let point = hostingView.convert(location, from: tableView)
+            // the frame is in window coordinates (SwiftUI .global), so the touch is taken in the window too
+            let point = gestureRecognizer.location(in: nil)
             return frame.insetBy(dx: -bubbleTouchMargin, dy: -bubbleTouchMargin).contains(point)
         }
 
