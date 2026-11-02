@@ -525,6 +525,10 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         // helpers to avoid queueing same updates multiple times
         var latestUpdateSections: [MessagesSection] = []
 
+        // isaCloud: the bubble frame of each row, in the coordinates of its cell (see gestureRecognizerShouldBegin). A plain
+        // property, not @Published or @State: writing it must not redraw the list
+        var bubbleFrames: [String: CGRect] = [:]
+
         private let impactGenerator = UIImpactFeedbackGenerator(style: .heavy)
 
         init(
@@ -611,15 +615,23 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             return true
         }
 
-        // isaCloud: the menu opens only on the message (bubble, photo, link...), not on the empty space of the row beside it:
-        // a touch that lands on the table, on the cell or on its content view itself does not begin the long press
+        // isaCloud: the menu opens only on a bubble (text, photo, quote, reactions), not on the empty space of the row beside it.
+        // The bubble frame comes from the cell (MessageBubbleFrameKey), in the coordinates of the cell's hosting view. Without a
+        // known frame for the row the long press begins as before: a missing measure never blocks the menu
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard gestureRecognizer is UILongPressGestureRecognizer, let tableView = gestureRecognizer.view as? UITableView else { return true }
             let location = gestureRecognizer.location(in: tableView)
-            guard let hit = tableView.hitTest(location, with: nil) else { return false }
-            let cell = tableView.indexPathForRow(at: location).flatMap { tableView.cellForRow(at: $0) }
-            return hit !== tableView && hit !== cell && hit !== cell?.contentView
+            guard let indexPath = tableView.indexPathForRow(at: location),
+                  let row = messageRow(at: indexPath),
+                  let cell = tableView.cellForRow(at: indexPath),
+                  let frame = bubbleFrames[row.id] else { return true }
+            let hostingView = cell.contentView.subviews.first ?? cell.contentView
+            let point = hostingView.convert(location, from: tableView)
+            return frame.insetBy(dx: -bubbleTouchMargin, dy: -bubbleTouchMargin).contains(point)
         }
+
+        /// points around a bubble that still open its menu, so a touch a little outside the edge does not miss
+        private let bubbleTouchMargin: CGFloat = 6
 
         // the long press must not block scroll or the SwiftUI gestures of the cells
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -737,6 +749,10 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                     isDisplayingMessageMenu: false
                 )
                 .background(MessageMenuPreferenceViewSetter(id: row.id))
+                // isaCloud: the bubble frame is kept for the long press, not published: no redraw
+                .onPreferenceChange(MessageBubbleFrameKey.self) { [weak self] frame in
+                    self?.bubbleFrames[row.id] = frame
+                }
                 .rotationEffect(Angle(degrees: (type == .conversation ? 180 : 0)))
                 .applyIf(chatParams.showMessageMenuOnLongPress) {
                     $0.simultaneousGesture(

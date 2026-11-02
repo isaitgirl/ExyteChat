@@ -164,6 +164,8 @@ struct MessageView: View {
                         .font(Font(params.timeFont))
                 }
             }
+            // isaCloud: the bubble (quote, content and reactions) is what the long press of UIList opens the menu on; the avatar and the status stay out
+            .reportsMessageBubbleFrame()
 
             if message.user.isCurrentUser, let status = message.status {
                 MessageStatusView(status: status) {

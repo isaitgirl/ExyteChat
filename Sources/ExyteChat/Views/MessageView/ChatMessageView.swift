@@ -77,6 +77,9 @@ struct ChatMessageView<MessageContent: View>: View {
                     .environmentObject(viewModel)
                     .environment(\.chatMessageType, chatType)
                     .environment(\.messageCustomizationParams, messageParams)
+                    // isaCloud: a message built by the app (GIF, or a default bubble inside a custom builder) has no MessageView
+                    // to report its bubble, so the whole content is the bubble for the long press
+                    .reportsMessageBubbleFrame()
             }
         }
     }
