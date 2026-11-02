@@ -697,7 +697,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                         TapGesture().onEnded { } // add empty tap to prevent iOS17 scroll breaking bug (drag on cells stops working)
                     )
                     // isaCloud: the system default (0.5 s, felt as ~0.6 s inside the list) is slower than the other chat apps: open the menu sooner
-                    .onLongPressGesture(minimumDuration: 0.3) {
+                    // (0.15 s here + 0.1 s of menu animation in the app = 250 ms; a slower tap may open the menu instead of the media)
+                    .onLongPressGesture(minimumDuration: 0.15) {
                         // Trigger haptic feedback
                         self.impactGenerator.impactOccurred()
                         // Launch the message menu
