@@ -13,6 +13,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
     typealias MessageBuilderParamsClosure = ChatView<MessageContent, InputView, DefaultMessageMenuAction>.MessageBuilderParamsClosure
 
     @Environment(\.chatTheme) var theme
+    // isaCloud: the openURL of the app, kept for the cells (see tableView(_:cellForRowAt:))
+    @Environment(\.openURL) private var openURL
 
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var inputViewModel: InputViewModel
@@ -91,6 +93,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
     }
 
     func updateUIView(_ tableView: UITableView, context: Context) {
+        context.coordinator.outerOpenURL = openURL
+
         if !chatParams.isScrollEnabled {
             DispatchQueue.main.async {
                 tableContentHeight = tableView.contentSize.height
@@ -525,6 +529,13 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         // helpers to avoid queueing same updates multiple times
         var latestUpdateSections: [MessagesSection] = []
 
+        // isaCloud: the bubble frame of each row, in the coordinates of its cell (see gestureRecognizerShouldBegin). A plain
+        // property, not @Published or @State: writing it must not redraw the list
+        var bubbleFrames: [String: CGRect] = [:]
+
+        // isaCloud: the openURL of the app, called by the cells' own openURL when the menu is closed
+        var outerOpenURL: OpenURLAction?
+
         private let impactGenerator = UIImpactFeedbackGenerator(style: .heavy)
 
         init(
@@ -610,6 +621,23 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             }
             return true
         }
+
+        // isaCloud: the menu opens only on a bubble (text, photo, quote, reactions), not on the empty space of the row beside it.
+        // The bubble frame comes from the cell (MessageBubbleFrameKey), in the coordinates of the cell's hosting view. Without a
+        // known frame for the row the long press begins as before: a missing measure never blocks the menu
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard gestureRecognizer is UILongPressGestureRecognizer, let tableView = gestureRecognizer.view as? UITableView else { return true }
+            let location = gestureRecognizer.location(in: tableView)
+            guard let indexPath = tableView.indexPathForRow(at: location),
+                  let row = messageRow(at: indexPath),
+                  let frame = bubbleFrames[row.id] else { return true }
+            // the frame is in window coordinates (SwiftUI .global), so the touch is taken in the window too
+            let point = gestureRecognizer.location(in: nil)
+            return frame.insetBy(dx: -bubbleTouchMargin, dy: -bubbleTouchMargin).contains(point)
+        }
+
+        /// points around a bubble that still open its menu, so a touch a little outside the edge does not miss
+        private let bubbleTouchMargin: CGFloat = 6
 
         // the long press must not block scroll or the SwiftUI gestures of the cells
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -727,6 +755,19 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                     isDisplayingMessageMenu: false
                 )
                 .background(MessageMenuPreferenceViewSetter(id: row.id))
+                // isaCloud: a link tapped while the message menu is open is ignored: its tap fires when the finger lifts after
+                // the long press, and the app would open it behind the menu (the same rule as the media taps in ChatViewModel).
+                // With the menu closed, the link goes to the app's openURL as before
+                .environment(\.openURL, OpenURLAction { [weak self] url in
+                    if self?.viewModel.messageMenuRow == nil {
+                        self?.outerOpenURL?(url)
+                    }
+                    return .handled
+                })
+                // isaCloud: the bubble frame is kept for the long press, not published: no redraw
+                .onPreferenceChange(MessageBubbleFrameKey.self) { [weak self] frame in
+                    self?.bubbleFrames[row.id] = frame
+                }
                 .rotationEffect(Angle(degrees: (type == .conversation ? 180 : 0)))
                 .applyIf(chatParams.showMessageMenuOnLongPress) {
                     $0.simultaneousGesture(
