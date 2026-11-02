@@ -13,6 +13,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
     typealias MessageBuilderParamsClosure = ChatView<MessageContent, InputView, DefaultMessageMenuAction>.MessageBuilderParamsClosure
 
     @Environment(\.chatTheme) var theme
+    // isaCloud: the openURL of the app, kept for the cells (see tableView(_:cellForRowAt:))
+    @Environment(\.openURL) private var openURL
 
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var inputViewModel: InputViewModel
@@ -91,6 +93,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
     }
 
     func updateUIView(_ tableView: UITableView, context: Context) {
+        context.coordinator.outerOpenURL = openURL
+
         if !chatParams.isScrollEnabled {
             DispatchQueue.main.async {
                 tableContentHeight = tableView.contentSize.height
@@ -529,6 +533,9 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         // property, not @Published or @State: writing it must not redraw the list
         var bubbleFrames: [String: CGRect] = [:]
 
+        // isaCloud: the openURL of the app, called by the cells' own openURL when the menu is closed
+        var outerOpenURL: OpenURLAction?
+
         private let impactGenerator = UIImpactFeedbackGenerator(style: .heavy)
 
         init(
@@ -748,6 +755,15 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                     isDisplayingMessageMenu: false
                 )
                 .background(MessageMenuPreferenceViewSetter(id: row.id))
+                // isaCloud: a link tapped while the message menu is open is ignored: its tap fires when the finger lifts after
+                // the long press, and the app would open it behind the menu (the same rule as the media taps in ChatViewModel).
+                // With the menu closed, the link goes to the app's openURL as before
+                .environment(\.openURL, OpenURLAction { [weak self] url in
+                    if self?.viewModel.messageMenuRow == nil {
+                        self?.outerOpenURL?(url)
+                    }
+                    return .handled
+                })
                 // isaCloud: the bubble frame is kept for the long press, not published: no redraw
                 .onPreferenceChange(MessageBubbleFrameKey.self) { [weak self] frame in
                     self?.bubbleFrames[row.id] = frame
