@@ -14,7 +14,14 @@ import LinkPresentation
 /// Therefore: create a light wrapper around NSCache that does not require the caller to drop down to UIKit.
 class LinkMetadataCache {
 
+    /// isaCloud: for how long a URL whose preview failed (or timed out) is shown as unavailable, without asking the provider again.
+    static let failureMemory: TimeInterval = 5 * 60
+
     private let nsCache = NSCache<NSURL, LPLinkMetadata>()
+
+    /// isaCloud: URL -> when its preview failed. Read and written from the main thread by LinkPreviewView, but guarded anyway.
+    private let failuresLock = NSLock()
+    private var failures: [URL: Date] = [:]
 
     public func insert(_ metadata: LPLinkMetadata, forURL url: URL) {
         nsCache.setObject(metadata, forKey: url as NSURL)
@@ -22,6 +29,27 @@ class LinkMetadataCache {
 
     public func get(forURL url: URL) -> LPLinkMetadata? {
         nsCache.object(forKey: url as NSURL)
+    }
+
+    /// isaCloud: remembers that the preview of `url` could not be loaded.
+    public func markFailed(_ url: URL) {
+        failuresLock.lock()
+        defer { failuresLock.unlock() }
+        failures[url] = Date()
+    }
+
+    /// isaCloud: true when the preview of `url` failed less than `failureMemory` seconds ago. Expired entries are dropped here.
+    public func recentlyFailed(_ url: URL) -> Bool {
+        failuresLock.lock()
+        defer { failuresLock.unlock() }
+        guard let failedAt = failures[url] else {
+            return false
+        }
+        if Date().timeIntervalSince(failedAt) < Self.failureMemory {
+            return true
+        }
+        failures[url] = nil
+        return false
     }
 
 }
