@@ -26,8 +26,14 @@ public enum LinkPreviewPrefetcher {
         guard !pending.isEmpty else {
             return
         }
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
+        // isaCloud: the wait ends at the first of two events (all fetches done, or the deadline), through a one-shot gate.
+        // A task group would not do: cancelling it does not interrupt LPMetadataProvider.startFetchingMetadata, which
+        // ignores cancellation, so the caller would stay blocked until the slowest fetch finished (2.7 s and 4.6 s
+        // against a 2 s timeout in tests). The fetches run in unstructured tasks, so they keep going after the wait ends
+        // and still fill the cache, which is what we want for the next time the user opens the same chat.
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let gate = PrefetchGate(continuation)
+            Task {
                 await withTaskGroup(of: Void.self) { fetches in
                     for url in pending {
                         fetches.addTask {
@@ -36,13 +42,12 @@ public enum LinkPreviewPrefetcher {
                     }
                     await fetches.waitForAll()
                 }
+                gate.resume()
             }
-            group.addTask {
+            Task {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                gate.resume()
             }
-            // The first child to finish (all fetches, or the deadline) ends the wait.
-            _ = await group.next()
-            group.cancelAll()
         }
     }
 
@@ -53,5 +58,30 @@ public enum LinkPreviewPrefetcher {
             return
         }
         LinkPreviewView.cache.insert(metadata, forURL: url)
+    }
+}
+
+/// isaCloud: resumes the continuation of `LinkPreviewPrefetcher.prefetch` only once, whichever of its two tasks calls
+/// `resume()` first. The later call does nothing.
+private final class PrefetchGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var resumed = false
+
+    init(_ continuation: CheckedContinuation<Void, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume() {
+        lock.lock()
+        guard !resumed else {
+            lock.unlock()
+            return
+        }
+        resumed = true
+        let continuation = self.continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume()
     }
 }
