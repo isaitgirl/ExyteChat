@@ -132,7 +132,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
 
             if chatCustomizationParameters.isListAboveInputView {
-                listWithButton
+                hideableListWithButton
                 if let builder = betweenListAndInputViewBuilder {
                     builder()
                 }
@@ -142,7 +142,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 if let builder = betweenListAndInputViewBuilder {
                     builder()
                 }
-                listWithButton
+                hideableListWithButton
             }
         }
         // Used to prevent ChatView movement during Emoji Keyboard invocation
@@ -298,6 +298,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         .padding(.top, 8)
     }
     
+    // isaCloud: the list is faded out and takes no taps while chatCustomizationParameters.isListHidden (see listHidden(_:))
+    var hideableListWithButton: some View {
+        listWithButton
+            .opacity(chatCustomizationParameters.isListHidden ? 0 : 1)
+            .allowsHitTesting(!chatCustomizationParameters.isListHidden)
+    }
+
     @ViewBuilder
     var listWithButton: some View {
         switch type {

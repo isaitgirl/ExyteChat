@@ -14,6 +14,7 @@ struct ChatCustomizationParameters {
     var showNetworkConnectionProblem: Bool = false
     var showDateHeaders: Bool = true
     var isScrollEnabled: Bool = true
+    var isListHidden: Bool = false // isaCloud: hides the list (not the input bar), see listHidden(_:)
     var autoFocusTextInputOnChatOpen: Bool = false
     var showMessageMenuOnLongPress: Bool = true
     var showShareAttachmentButton: Bool = true

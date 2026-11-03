@@ -17,6 +17,8 @@ import SwiftUI
 private struct LinkViewRepresentable: UIViewRepresentable {
 
     let metadata: LinkPreviewMetadata
+    /// isaCloud: the enriched card takes the width the row offers; the placeholder pill keeps its own width.
+    let fillsWidth: Bool
 
     func makeUIView(context: Context) -> LPLinkView {
         switch metadata {
@@ -35,7 +37,9 @@ private struct LinkViewRepresentable: UIViewRepresentable {
             CGSize(width: proposedWidth, height: .greatestFiniteMagnitude)
         )
         let height = proposal.height ?? fit.height
-        return CGSize(width: fit.width, height: height)
+        // isaCloud: the height is the one proposed (the card has a fixed height); LPLinkView crops its content to it.
+        let width = fillsWidth ? (proposal.width ?? fit.width) : fit.width
+        return CGSize(width: width, height: height)
     }
 }
 
@@ -56,7 +60,14 @@ private struct PlaceholderOrEnrichedLinkPillView: View {
     }
 
     var body: some View {
-        LinkViewRepresentable(metadata: metadata)
+        LinkViewRepresentable(metadata: metadata, fillsWidth: isEnriched)
+    }
+
+    private var isEnriched: Bool {
+        if case .enriched = metadata {
+            return true
+        }
+        return false
     }
 }
 
@@ -68,21 +79,40 @@ private struct PlaceholderOrEnrichedLinkPillView: View {
 /// Since this view is the only view generating link preview metadata, it also manages the cache.
 struct LinkPreviewView: View {
 
+    /// isaCloud: height of the card in every state (loading, preview, unavailable). Rows with links used to start as a small pill and
+    /// grow when the preview arrived, which pushed the rows above them; with a fixed height the row never changes size.
+    static let cardHeight: CGFloat = 120
+
+    /// isaCloud: how long the provider may take before the card shows "Preview not available".
+    private static let fetchTimeout: TimeInterval = 5
+
     @State var metadata: LinkPreviewMetadata
-    private static let cache = LinkMetadataCache()
+    /// isaCloud: the preview failed (or timed out) and the card shows the unavailable state instead of the pill.
+    @State private var unavailable: Bool
+    static let cache = LinkMetadataCache()
 
     init(url: URL) {
-        guard let cached = Self.cache.get(forURL: url) else {
-            metadata = .placeholder(for: url)
-            return
+        // isaCloud: the @State values are set with State(initialValue:), not assigned in init: an assignment to a @State that
+        // already has a default value does not reliably reach the view, and then a row recreated after a failure would fetch again.
+        if let cached = Self.cache.get(forURL: url) {
+            _metadata = State(initialValue: .enriched(with: cached))
+            _unavailable = State(initialValue: false)
+        } else {
+            _metadata = State(initialValue: .placeholder(for: url))
+            _unavailable = State(initialValue: Self.cache.recentlyFailed(url))
         }
-        metadata = .enriched(with: cached)
     }
 
     private func fetchMetadata(for url: URL) async {
         let provider = LPMetadataProvider()
+        provider.timeout = Self.fetchTimeout
         let metadata = try? await provider.startFetchingMetadata(for: url)
         guard let metadata = metadata else {
+            // isaCloud: a fetch cancelled because the row left the screen says nothing about the page.
+            if !Task.isCancelled {
+                Self.cache.markFailed(url)
+                unavailable = true
+            }
             return
         }
         self.metadata = .enriched(with: metadata)
@@ -91,18 +121,39 @@ struct LinkPreviewView: View {
 
     var body: some View {
         // Use ZStack instead of Group as animation modifier doesn't work with Group.
-        ZStack {
-            switch metadata {
-            case .placeholder(let url):
-                PlaceholderOrEnrichedLinkPillView(url: url)
-                    .task {
-                        await fetchMetadata(for: url)
-                    }
-            case .enriched(let metadata):
-                PlaceholderOrEnrichedLinkPillView(metadata: metadata)
+        ZStack(alignment: .topLeading) {
+            if unavailable {
+                unavailableCard
+            } else {
+                switch metadata {
+                case .placeholder(let url):
+                    PlaceholderOrEnrichedLinkPillView(url: url)
+                        .task {
+                            await fetchMetadata(for: url)
+                        }
+                case .enriched(let metadata):
+                    PlaceholderOrEnrichedLinkPillView(metadata: metadata)
+                }
             }
         }
+        .frame(maxWidth: .infinity, minHeight: Self.cardHeight, maxHeight: Self.cardHeight, alignment: .topLeading)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .animation(.default, value: metadata)
+    }
+
+    /// isaCloud: the card when there is no preview: a discreet icon and text, centred, on a slightly highlighted background.
+    private var unavailableCard: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "link.badge.plus")
+                .font(.title3)
+            Text(NSLocalizedString("Preview not available", comment: ""))
+                .font(.caption)
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(.secondary)
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.secondary.opacity(0.12))
     }
 }
 

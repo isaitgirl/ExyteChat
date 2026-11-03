@@ -151,6 +151,14 @@ public extension ChatView {
         return view
     }
 
+    // isaCloud: hides the list (with its scroll to bottom button) while the app settles a jump to a message; the input bar and the
+    // header stay as they are. The list is only faded out and does not take taps, so it keeps its place and its scroll position.
+    func listHidden(_ hidden: Bool) -> ChatView {
+        var view = self
+        view.chatCustomizationParameters.isListHidden = hidden
+        return view
+    }
+
     /// UITableView's will display cell delegate calls this closure
     func onWillDisplayCell(_ closure: @escaping (Message) -> Void) -> ChatView {
         var view = self
