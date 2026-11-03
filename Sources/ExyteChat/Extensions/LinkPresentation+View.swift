@@ -69,7 +69,7 @@ private struct PlaceholderOrEnrichedLinkPillView: View {
 struct LinkPreviewView: View {
 
     @State var metadata: LinkPreviewMetadata
-    private static let cache = LinkMetadataCache()
+    static let cache = LinkMetadataCache()
 
     init(url: URL) {
         guard let cached = Self.cache.get(forURL: url) else {
