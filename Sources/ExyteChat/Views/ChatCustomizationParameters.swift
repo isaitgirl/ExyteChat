@@ -18,6 +18,8 @@ struct ChatCustomizationParameters {
     var autoFocusTextInputOnChatOpen: Bool = false
     var showMessageMenuOnLongPress: Bool = true
     var showShareAttachmentButton: Bool = true
+    // isaCloud: the fullscreen viewer shows only the tapped attachment, with close and share always visible (see fullscreenSingleAttachment(_:))
+    var fullscreenSingleAttachment: Bool = false
     var showLastReadIndicator: Bool = false
     var keyboardDismissMode: UIScrollView.KeyboardDismissMode = .none
     var messageMenuAnimationDuration: CGFloat = 0.3

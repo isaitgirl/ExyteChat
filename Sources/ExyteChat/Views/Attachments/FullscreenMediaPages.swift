@@ -11,6 +11,8 @@ struct FullscreenMediaPages: View {
 
     @StateObject var viewModel: FullscreenMediaPagesViewModel
     var showShareButton: Bool = true
+    // isaCloud: shows only the tapped attachment, with close and share over the media (see fullscreenSingleAttachment(_:))
+    var singleAttachment: Bool = false
     var onClose: () -> Void
 
     @State private var shareItem: ShareItem?
@@ -22,15 +24,24 @@ struct FullscreenMediaPages: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if showMinis {
-                headerView
-            }
+        Group {
+            if singleAttachment {
+                mediaPagerView
+                    .overlay(alignment: .top) {
+                        singleAttachmentControls
+                    }
+            } else {
+                VStack(spacing: 0) {
+                    if showMinis {
+                        headerView
+                    }
 
-            mediaPagerView
+                    mediaPagerView
 
-            if showMinis {
-                minisView
+                    if showMinis {
+                        minisView
+                    }
+                }
             }
         }
         .background {
@@ -89,10 +100,44 @@ struct FullscreenMediaPages: View {
         .environmentObject(viewModel)
         .tabViewStyle(.page(indexDisplayMode: .never))
         .onTapGesture {
+            guard !singleAttachment else { return }
             withAnimation {
                 showMinis.toggle()
             }
         }
+    }
+
+    var singleAttachmentControls: some View {
+        HStack {
+            Button(action: onClose) {
+                theme.images.mediaPicker.cross
+                    .imageScale(.large)
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .tint(tintColor)
+
+            Spacer()
+
+            if showShareButton {
+                Group {
+                    if isPreparingShare {
+                        ProgressView()
+                            .tint(tintColor)
+                            .viewSize(24)
+                    } else {
+                        controlIcon(theme.images.fullscreenMedia.share) {
+                            shareCurrentAttachment()
+                        }
+                    }
+                }
+                .frame(width: 40, height: 40)
+                .background(.ultraThinMaterial, in: Circle())
+                .foregroundColor(tintColor)
+            }
+        }
+        .padding(.horizontal, 12)
     }
 
     var minisView: some View {

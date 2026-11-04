@@ -106,6 +106,15 @@ public extension ChatView {
         return view
     }
 
+    /// isaCloud: the fullscreen attachment viewer shows only the tapped attachment, without counter and thumbnails;
+    /// close and share stay on top of the media, and tapping the media does nothing
+    /// - Default is false
+    func fullscreenSingleAttachment(_ enabled: Bool) -> ChatView {
+        var view = self
+        view.chatCustomizationParameters.fullscreenSingleAttachment = enabled
+        return view
+    }
+
     /// Sets the keyboard dismiss mode for the chat list
     /// - Parameter mode: The keyboard dismiss mode (.interactive, .onDrag, or .none)
     /// - Default is .none
