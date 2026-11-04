@@ -207,7 +207,11 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 }
             }
             .fullScreenCover(isPresented: $viewModel.fullscreenAttachmentPresented) {
-                let attachments = sections.flatMap { section in section.rows.flatMap { $0.message.attachments } }
+                let allAttachments = sections.flatMap { section in section.rows.flatMap { $0.message.attachments } }
+                let tappedAttachment = allAttachments.first { $0.id == viewModel.fullscreenAttachmentItem?.id }
+                // isaCloud: single-attachment mode shows only the tapped one (all of them if it is not found, as before)
+                let singleAttachment = chatCustomizationParameters.fullscreenSingleAttachment && tappedAttachment != nil
+                let attachments = tappedAttachment.map { singleAttachment ? [$0] : allAttachments } ?? allAttachments
                 let index = attachments.firstIndex { $0.id == viewModel.fullscreenAttachmentItem?.id }
 
                 FullscreenMediaPages(
@@ -216,6 +220,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                         index: index ?? 0
                     ),
                     showShareButton: chatCustomizationParameters.showShareAttachmentButton,
+                    singleAttachment: singleAttachment,
                     onClose: { [weak viewModel] in
                         viewModel?.dismissAttachmentFullScreen()
                     }
