@@ -93,7 +93,7 @@ extension MessageTextView {
                     Image(uiImage: preview)
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: 160, maxHeight: 64, alignment: .leading)
+                        .frame(maxWidth: 200, maxHeight: 80, alignment: .leading)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
