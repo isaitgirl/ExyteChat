@@ -505,7 +505,9 @@ struct MessageView: View {
         let messageView = MessageTextView(
             attributedText: message.attributedText,
             userType: message.user.type,
-            params: params
+            params: params,
+            // isaCloud: the thumbnail of the quoted photo, drawn inside the quote (nil for other apps' messages)
+            quotePreview: message.quotePreview
         )
         .applyIf(!message.attachments.isEmpty || !message.files.isEmpty) {
             $0.frame(maxWidth: .infinity, alignment: .leading)
