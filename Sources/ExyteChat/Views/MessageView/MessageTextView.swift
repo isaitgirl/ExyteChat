@@ -78,7 +78,7 @@ extension MessageTextView {
     }
 
     /// isaCloud: a quote: its content with ONE bar on the left, as tall as the whole quote, however many lines it takes and
-    /// however many quotes are nested in it (they have their own bar inside this one). A preview, when given, is drawn above the content, inside the bar.
+    /// however many quotes are nested in it (they have their own bar inside this one). A preview, when given, is drawn below the content, inside the bar.
     private func quoteView(_ children: [TextNode], preview: UIImage? = nil) -> some View {
         let color = theme.colors.messageText(userType)
         return HStack(alignment: .top, spacing: 8) {
@@ -87,6 +87,8 @@ extension MessageTextView {
                 .fill(color.opacity(0.6))
                 .frame(width: 3)
             VStack(alignment: .leading, spacing: 4) {
+                // isaCloud: the author and the label of the quote (its first lines) come above the thumbnail
+                nodesView(children)
                 if let preview {
                     Image(uiImage: preview)
                         .resizable()
@@ -94,7 +96,6 @@ extension MessageTextView {
                         .frame(maxWidth: 160, maxHeight: 64, alignment: .leading)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
-                nodesView(children)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
