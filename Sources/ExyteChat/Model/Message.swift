@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 open class Message: ObservableObject, Identifiable {
 
@@ -66,6 +67,10 @@ open class Message: ObservableObject, Identifiable {
     @Published open var customData: [String: any Sendable]
 
     @Published public var triggerRedraw: UUID?
+
+    // isaCloud: a thumbnail drawn in the quote of the text (the first quote block, inside its bar), e.g. the photo a reply quotes.
+    // Nil for every message that does not set it, so other apps are not affected.
+    @Published open var quotePreview: UIImage? = nil
 
     open var hasText: Bool {
         !attributedText.characters.isEmpty

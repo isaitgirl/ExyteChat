@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 @MainActor
 struct MessageTextView: View {
@@ -18,6 +19,8 @@ struct MessageTextView: View {
     let attributedText: AttributedString
     let userType: UserType
     let params: MessageCustomizationParameters
+    // isaCloud: a thumbnail drawn inside the first quote of the text, above the quoted lines (see Message.quotePreview). Nil by default.
+    var quotePreview: UIImage? = nil
 
     var previewLinks: [URL] {
         Array(attributedText.urls.filter(params.shouldShowPreviewForLink).prefix(params.linkPreviewLimit))
@@ -29,7 +32,7 @@ struct MessageTextView: View {
                 if attributedText.containsQuote {
                     // isaCloud: a text with quotes is drawn as a tree of text and quotes, nested quotes inside their quote
                     // (see AttributedString+Quote.swift)
-                    nodesView(attributedText.textTree)
+                    nodesView(attributedText.textTree, preview: quotePreview)
                 } else {
                     Text(attributedText)
                         .foregroundStyle(theme.colors.messageText(userType))
@@ -53,16 +56,21 @@ struct MessageTextView: View {
 extension MessageTextView {
 
     /// isaCloud: the text and quotes of a message, one under the other.
-    private func nodesView(_ nodes: [TextNode]) -> AnyView {
-        AnyView(
+    private func nodesView(_ nodes: [TextNode], preview: UIImage? = nil) -> AnyView {
+        // isaCloud: the preview goes to the first quote only (the one a reply made from a photo starts with)
+        let firstQuoteIndex = nodes.firstIndex { node in
+            if case .quote = node { return true }
+            return false
+        }
+        return AnyView(
             VStack(alignment: .leading) {
-                ForEach(Array(nodes.enumerated()), id: \.offset) { _, node in
+                ForEach(Array(nodes.enumerated()), id: \.offset) { index, node in
                     switch node {
                     case .text(let text):
                         Text(text)
                             .foregroundStyle(theme.colors.messageText(userType))
                     case .quote(let children):
-                        quoteView(children)
+                        quoteView(children, preview: index == firstQuoteIndex ? preview : nil)
                     }
                 }
             }
@@ -70,15 +78,24 @@ extension MessageTextView {
     }
 
     /// isaCloud: a quote: its content with ONE bar on the left, as tall as the whole quote, however many lines it takes and
-    /// however many quotes are nested in it (they have their own bar inside this one).
-    private func quoteView(_ children: [TextNode]) -> some View {
+    /// however many quotes are nested in it (they have their own bar inside this one). A preview, when given, is drawn above the content, inside the bar.
+    private func quoteView(_ children: [TextNode], preview: UIImage? = nil) -> some View {
         let color = theme.colors.messageText(userType)
         return HStack(alignment: .top, spacing: 8) {
             // the bar takes the height of the content beside it, because of the fixedSize below
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(color.opacity(0.6))
                 .frame(width: 3)
-            nodesView(children)
+            VStack(alignment: .leading, spacing: 4) {
+                if let preview {
+                    Image(uiImage: preview)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 160, maxHeight: 64, alignment: .leading)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                nodesView(children)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
     }
