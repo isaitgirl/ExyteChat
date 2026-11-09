@@ -83,8 +83,33 @@ public struct AttachmentCell: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        // isaCloud: the file size goes in the bottom-left corner; the bottom-right keeps the time and the media lock
+        .overlay(alignment: .bottomLeading) {
+            sizePill
+        }
         .contentShape(Rectangle())
         .simultaneousGesture(attachmentTapGesture)
+    }
+
+    /// isaCloud: file size over photos and videos, once known and not uploading. Stickers and GIFs are not drawn by this cell.
+    @ViewBuilder
+    private var sizePill: some View {
+        if let bytes = attachment.size, bytes > 0, !isUploading {
+            Text(Int64(bytes).formatted(.byteCount(style: .file)))
+                .font(.caption2)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(.black.opacity(0.5)))
+                .padding(6)
+        }
+    }
+
+    private var isUploading: Bool {
+        if case .some(.inProgress) = attachment.fullUploadStatus {
+            return true
+        }
+        return false
     }
 
     @ViewBuilder

@@ -223,12 +223,15 @@ public struct Recording: Codable, Hashable, Sendable {
     public var waveformSamples: [CGFloat]
     public var url: URL?
     public var mimeType: String?
+    // isaCloud: file size in bytes, shown next to the duration; nil when unknown
+    public var size: Int?
 
-    public init(duration: Double = 0.0, waveformSamples: [CGFloat] = [], url: URL? = nil, mimeType: String? = nil) {
+    public init(duration: Double = 0.0, waveformSamples: [CGFloat] = [], url: URL? = nil, mimeType: String? = nil, size: Int? = nil) {
         self.duration = duration
         self.waveformSamples = waveformSamples
         self.url = url
         self.mimeType = mimeType
+        self.size = size
     }
 }
 
