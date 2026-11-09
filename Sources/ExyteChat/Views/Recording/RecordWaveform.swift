@@ -33,6 +33,15 @@ struct RecordWaveformWithButtons: View {
         return max(Int((secondsLeft != 0 ? secondsLeft : recording.duration) - 0.5), 0)
     }
 
+    // isaCloud: the time, followed by the file size when it is known
+    var durationAndSizeText: String {
+        let time = DateFormatter.timeString(duration)
+        guard let size = recording.size, size > 0 else {
+            return time
+        }
+        return "\(time) · \(Int64(size).formatted(.byteCount(style: .file)))"
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Group {
@@ -59,7 +68,7 @@ struct RecordWaveformWithButtons: View {
                         await recordPlayer.seek(with: recording, to: progress)
                     }
                 }
-                Text(DateFormatter.timeString(duration))
+                Text(durationAndSizeText)
                     .font(.caption2)
                     .monospacedDigit()
                     .foregroundColor(colorWaveform)

@@ -61,6 +61,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
     public let mimeType: String?
     public let thumbnailCacheKey: String?
     public let fullCacheKey: String?
+    // isaCloud: file size in bytes, shown in a pill over the media; nil when unknown
+    public let size: Int?
 
     public init(
         id: String,
@@ -70,7 +72,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         mimeType: String? = nil,
         thumbnailCacheKey: String? = nil,
         fullCacheKey: String? = nil,
-        fullUploadStatus: UploadStatus? = nil
+        fullUploadStatus: UploadStatus? = nil,
+        size: Int? = nil
     ) {
         self.id = id
         self.thumbnail = thumbnail
@@ -80,6 +83,7 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         self.thumbnailCacheKey = thumbnailCacheKey
         self.fullCacheKey = fullCacheKey
         self.fullUploadStatus = fullUploadStatus
+        self.size = size
     }
 
     public init(
@@ -87,7 +91,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         url: URL,
         type: AttachmentType,
         mimeType: String? = nil,
-        cacheKey: String? = nil
+        cacheKey: String? = nil,
+        size: Int? = nil
     ) {
         self.init(
             id: id,
@@ -96,7 +101,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
             type: type,
             mimeType: mimeType,
             thumbnailCacheKey: cacheKey,
-            fullCacheKey: cacheKey
+            fullCacheKey: cacheKey,
+            size: size
         )
     }
 
@@ -108,7 +114,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
         type: AttachmentType? = nil,
         mimeType: String? = nil,
         thumbnailCacheKey: String? = nil,
-        fullCacheKey: String? = nil
+        fullCacheKey: String? = nil,
+        size: Int? = nil
     ) -> Attachment {
         Attachment(
             id: id ?? self.id,
@@ -118,7 +125,8 @@ public struct Attachment: Codable, Identifiable, Hashable, Sendable {
             mimeType: mimeType ?? self.mimeType,
             thumbnailCacheKey: thumbnailCacheKey ?? self.thumbnailCacheKey,
             fullCacheKey: fullCacheKey ?? self.fullCacheKey,
-            fullUploadStatus: fullUploadStatus ?? self.fullUploadStatus
+            fullUploadStatus: fullUploadStatus ?? self.fullUploadStatus,
+            size: size ?? self.size
         )
     }
 }
