@@ -89,7 +89,19 @@ struct FullscreenMediaPages: View {
         .padding(.bottom, 8)
     }
 
-    var mediaPagerView: some View {
+    @ViewBuilder var mediaPagerView: some View {
+        // isaCloud: with a single attachment there is nothing to page through; the page-style TabView made the video layer stay
+        // gray on iOS 27 until a touch (see docs/exytechat-fork.md), so the attachment is shown on its own
+        if singleAttachment, viewModel.attachments.indices.contains(viewModel.index) {
+            AttachmentsPage(attachment: viewModel.attachments[viewModel.index])
+                .environmentObject(viewModel)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            pagedMediaView
+        }
+    }
+
+    var pagedMediaView: some View {
         TabView(selection: $viewModel.index) {
             ForEach(viewModel.attachments.enumerated().map({ $0 }), id: \.offset) { (index, attachment) in
                 AttachmentsPage(attachment: attachment)
