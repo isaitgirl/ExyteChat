@@ -50,6 +50,7 @@ struct VideoView: View {
         .onAppear {
             // isaCloud: fallback for files without picture (audio only), which never report ready for display
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                NSLog("isaCloud-VIDEO fallback fired")
                 viewModel.autoPlayIfNeeded()
             }
         }
@@ -70,11 +71,21 @@ private struct PlayerControllerView: UIViewControllerRepresentable {
         controller.player = player
         controller.videoGravity = .resizeAspect
         controller.showsPlaybackControls = true
+        // isaCloud: DIAG video-cinza (temporary) - the Live Text analysis of video frames is turned off as a test
+        controller.allowsVideoFrameAnalysis = false
+        NSLog("isaCloud-VIDEO make")
         context.coordinator.observe(controller)
+        context.coordinator.dump("make", controller)
+        for delay in [0.3, 1.0, 2.0, 4.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak controller] in
+                if let controller { context.coordinator.dump("t+\(delay)", controller) }
+            }
+        }
         return controller
     }
 
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        context.coordinator.dump("update", controller)
         if controller.player !== player {
             controller.player = player
         }
@@ -89,8 +100,20 @@ private struct PlayerControllerView: UIViewControllerRepresentable {
             self.onReadyForDisplay = onReadyForDisplay
         }
 
+        // isaCloud: DIAG video-cinza (temporary)
+        func dump(_ tag: String, _ c: AVPlayerViewController) {
+            let item = c.player?.currentItem
+            NSLog("isaCloud-VIDEO %@ ready=%d window=%d frame=%@ videoBounds=%@ itemStatus=%ld size=%@ rate=%.1f tcs=%ld t=%.2f alpha=%.1f hidden=%d",
+                  tag, c.isReadyForDisplay ? 1 : 0, c.view.window != nil ? 1 : 0,
+                  NSCoder.string(for: c.view.frame), NSCoder.string(for: c.videoBounds),
+                  item?.status.rawValue ?? -1, item.map { NSCoder.string(for: $0.presentationSize) } ?? "-",
+                  c.player?.rate ?? -1, c.player?.timeControlStatus.rawValue ?? -1, c.player?.currentTime().seconds ?? -1,
+                  c.view.alpha, c.view.isHidden ? 1 : 0)
+        }
+
         func observe(_ controller: AVPlayerViewController) {
             observation = controller.observe(\.isReadyForDisplay, options: [.initial, .new]) { [weak self] controller, _ in
+                NSLog("isaCloud-VIDEO isReadyForDisplay -> %d", controller.isReadyForDisplay ? 1 : 0)
                 guard controller.isReadyForDisplay, let self, !self.notified else { return }
                 self.notified = true
                 DispatchQueue.main.async {

@@ -65,6 +65,7 @@ final class VideoViewModel: ObservableObject {
     func autoPlayIfNeeded() {
         guard !didAutoPlay else { return }
         didAutoPlay = true
+        NSLog("isaCloud-VIDEO autoplay")
         playVideo()
     }
 
