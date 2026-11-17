@@ -50,7 +50,7 @@ struct VideoView: View {
         .onAppear {
             // isaCloud: fallback for files without picture (audio only), which never report ready for display
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                NSLog("isaCloud-VIDEO fallback fired")
+                diagLog("isaCloud-VIDEO fallback fired")
                 viewModel.autoPlayIfNeeded()
             }
         }
@@ -73,7 +73,7 @@ private struct PlayerControllerView: UIViewControllerRepresentable {
         controller.showsPlaybackControls = true
         // isaCloud: DIAG video-cinza (temporary) - the Live Text analysis of video frames is turned off as a test
         controller.allowsVideoFrameAnalysis = false
-        NSLog("isaCloud-VIDEO make")
+        diagLog("isaCloud-VIDEO make")
         context.coordinator.observe(controller)
         context.coordinator.dump("make", controller)
         for delay in [0.3, 1.0, 2.0, 4.0] {
@@ -103,7 +103,7 @@ private struct PlayerControllerView: UIViewControllerRepresentable {
         // isaCloud: DIAG video-cinza (temporary)
         func dump(_ tag: String, _ c: AVPlayerViewController) {
             let item = c.player?.currentItem
-            NSLog("isaCloud-VIDEO %@ ready=%d window=%d frame=%@ videoBounds=%@ itemStatus=%ld size=%@ rate=%.1f tcs=%ld t=%.2f alpha=%.1f hidden=%d",
+            diagLog("isaCloud-VIDEO %@ ready=%d window=%d frame=%@ videoBounds=%@ itemStatus=%ld size=%@ rate=%.1f tcs=%ld t=%.2f alpha=%.1f hidden=%d",
                   tag, c.isReadyForDisplay ? 1 : 0, c.view.window != nil ? 1 : 0,
                   NSCoder.string(for: c.view.frame), NSCoder.string(for: c.videoBounds),
                   item?.status.rawValue ?? -1, item.map { NSCoder.string(for: $0.presentationSize) } ?? "-",
@@ -113,7 +113,7 @@ private struct PlayerControllerView: UIViewControllerRepresentable {
 
         func observe(_ controller: AVPlayerViewController) {
             observation = controller.observe(\.isReadyForDisplay, options: [.initial, .new]) { [weak self] controller, _ in
-                NSLog("isaCloud-VIDEO isReadyForDisplay -> %d", controller.isReadyForDisplay ? 1 : 0)
+                diagLog("isaCloud-VIDEO isReadyForDisplay -> %d", controller.isReadyForDisplay ? 1 : 0)
                 guard controller.isReadyForDisplay, let self, !self.notified else { return }
                 self.notified = true
                 DispatchQueue.main.async {

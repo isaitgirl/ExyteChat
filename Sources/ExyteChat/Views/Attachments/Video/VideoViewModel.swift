@@ -65,7 +65,7 @@ final class VideoViewModel: ObservableObject {
     func autoPlayIfNeeded() {
         guard !didAutoPlay else { return }
         didAutoPlay = true
-        NSLog("isaCloud-VIDEO autoplay")
+        diagLog("isaCloud-VIDEO autoplay")
         playVideo()
     }
 
@@ -82,5 +82,20 @@ final class VideoViewModel: ObservableObject {
     func finishVideo() {
         player?.seek(to: CMTime(seconds: 0, preferredTimescale: 10))
         isPlaying = false
+    }
+}
+
+// isaCloud: DIAG video-cinza (temporary) - writes to Library/Caches/isacloud-video.log so devicectl can read it
+func diagLog(_ format: String, _ args: CVarArg...) {
+    let line = String(format: format, arguments: args)
+    NSLog("%@", line)
+    guard let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+    let url = dir.appendingPathComponent("isacloud-video.log")
+    let stamp = ISO8601DateFormatter().string(from: Date())
+    let data = Data("\(stamp) \(line)\n".utf8)
+    if let handle = try? FileHandle(forWritingTo: url) {
+        handle.seekToEndOfFile(); handle.write(data); try? handle.close()
+    } else {
+        try? data.write(to: url)
     }
 }
