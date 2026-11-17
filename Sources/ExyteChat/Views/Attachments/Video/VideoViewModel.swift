@@ -17,6 +17,8 @@ final class VideoViewModel: ObservableObject {
 
     private var subscriptions = Set<AnyCancellable>()
     @Published var status: AVPlayer.Status = .unknown
+    // isaCloud: autoplay happens once, and never after the user already played or paused the video by hand
+    private var didAutoPlay = false
 
     init(attachment: Attachment) {
         self.attachment = attachment
@@ -46,6 +48,7 @@ final class VideoViewModel: ObservableObject {
     }
 
     func togglePlay() {
+        didAutoPlay = true
         if player?.isPlaying == true {
             pauseVideo()
         } else {
@@ -56,6 +59,13 @@ final class VideoViewModel: ObservableObject {
     func toggleMute() {
         player?.isMuted.toggle()
         isMuted = player?.isMuted ?? false
+    }
+
+    // isaCloud: called once the picture is on screen (or by a fallback timer), so the sound never starts over a gray frame
+    func autoPlayIfNeeded() {
+        guard !didAutoPlay else { return }
+        didAutoPlay = true
+        playVideo()
     }
 
     func playVideo() {

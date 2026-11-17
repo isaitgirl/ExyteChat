@@ -40,14 +40,63 @@ struct VideoView: View {
         .onChange(of: viewModel.isMuted) {  _ , newValue in
             mediaPagesViewModel.videoMuted = newValue
         }
-        .onChange(of: viewModel.status) {  _ , status in
-            if status == .readyToPlay {
-                viewModel.togglePlay()
-            }
-        }
     }
 
     func content(for player: AVPlayer) -> some View {
-        VideoPlayer(player: player)
+        // isaCloud: play starts only when the picture is ready to show, so the sound never begins over a gray frame
+        PlayerControllerView(player: player) {
+            viewModel.autoPlayIfNeeded()
+        }
+        .onAppear {
+            // isaCloud: fallback for files without picture (audio only), which never report ready for display
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                viewModel.autoPlayIfNeeded()
+            }
+        }
+    }
+}
+
+/// isaCloud: AVPlayerViewController instead of SwiftUI's VideoPlayer, so we know when the picture is ready (isReadyForDisplay)
+private struct PlayerControllerView: UIViewControllerRepresentable {
+    let player: AVPlayer
+    let onReadyForDisplay: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onReadyForDisplay: onReadyForDisplay)
+    }
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.videoGravity = .resizeAspect
+        controller.showsPlaybackControls = true
+        context.coordinator.observe(controller)
+        return controller
+    }
+
+    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        if controller.player !== player {
+            controller.player = player
+        }
+    }
+
+    final class Coordinator {
+        private let onReadyForDisplay: () -> Void
+        private var observation: NSKeyValueObservation?
+        private var notified = false
+
+        init(onReadyForDisplay: @escaping () -> Void) {
+            self.onReadyForDisplay = onReadyForDisplay
+        }
+
+        func observe(_ controller: AVPlayerViewController) {
+            observation = controller.observe(\.isReadyForDisplay, options: [.initial, .new]) { [weak self] controller, _ in
+                guard controller.isReadyForDisplay, let self, !self.notified else { return }
+                self.notified = true
+                DispatchQueue.main.async {
+                    self.onReadyForDisplay()
+                }
+            }
+        }
     }
 }
