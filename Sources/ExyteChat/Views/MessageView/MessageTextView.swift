@@ -23,6 +23,11 @@ struct MessageTextView: View {
     var quotePreview: UIImage? = nil
     // isaCloud: the action of a tap on the first quote of the text (see MessageCustomizationParameters.quoteTapClosure). Nil by default: no tap gesture.
     var onQuoteTap: (() -> Void)? = nil
+    // isaCloud: true when the first quote is not linked to the message it quotes: a small info icon is drawn at its top. False by default.
+    var quoteIsUnlinked: Bool = false
+    // isaCloud: the text of the balloon a tap on an unlinked first quote shows over it (see onQuoteTap's unlinkedHint). Nil: the tap calls onQuoteTap.
+    var unlinkedQuoteHint: String? = nil
+    @State private var showUnlinkedHint = false
 
     var previewLinks: [URL] {
         Array(attributedText.urls.filter(params.shouldShowPreviewForLink).prefix(params.linkPreviewLimit))
@@ -34,7 +39,7 @@ struct MessageTextView: View {
                 if attributedText.containsQuote {
                     // isaCloud: a text with quotes is drawn as a tree of text and quotes, nested quotes inside their quote
                     // (see AttributedString+Quote.swift)
-                    nodesView(attributedText.textTree, preview: quotePreview, onFirstQuoteTap: onQuoteTap)
+                    nodesView(attributedText.textTree, preview: quotePreview, onFirstQuoteTap: onQuoteTap, firstQuoteIsUnlinked: quoteIsUnlinked)
                 } else {
                     Text(attributedText)
                         .foregroundStyle(theme.colors.messageText(userType))
@@ -58,7 +63,7 @@ struct MessageTextView: View {
 extension MessageTextView {
 
     /// isaCloud: the text and quotes of a message, one under the other.
-    private func nodesView(_ nodes: [TextNode], preview: UIImage? = nil, onFirstQuoteTap: (() -> Void)? = nil) -> AnyView {
+    private func nodesView(_ nodes: [TextNode], preview: UIImage? = nil, onFirstQuoteTap: (() -> Void)? = nil, firstQuoteIsUnlinked: Bool = false) -> AnyView {
         // isaCloud: the preview goes to the first quote only (the one a reply made from a photo starts with)
         let firstQuoteIndex = nodes.firstIndex { node in
             if case .quote = node { return true }
@@ -73,7 +78,8 @@ extension MessageTextView {
                             .foregroundStyle(theme.colors.messageText(userType))
                     case .quote(let children):
                         // isaCloud: the tap goes to the first quote of the text only (top level: nested quotes get none)
-                        quoteView(children, preview: index == firstQuoteIndex ? preview : nil, onTap: index == firstQuoteIndex ? onFirstQuoteTap : nil)
+                        quoteView(children, preview: index == firstQuoteIndex ? preview : nil, onTap: index == firstQuoteIndex ? onFirstQuoteTap : nil,
+                                  isUnlinked: index == firstQuoteIndex && firstQuoteIsUnlinked)
                     }
                 }
             }
@@ -83,7 +89,8 @@ extension MessageTextView {
     /// isaCloud: a quote: its content with ONE bar on the left, as tall as the whole quote, however many lines it takes and
     /// however many quotes are nested in it (they have their own bar inside this one). A preview, when given, is drawn below the content, inside the bar.
     // isaCloud: with a tap action, the whole block of the quote (and only it) takes a simple tap; links inside the text keep their own taps
-    private func quoteView(_ children: [TextNode], preview: UIImage? = nil, onTap: (() -> Void)? = nil) -> some View {
+    // isaCloud: an unlinked quote (no link to the message it quotes) has a small info icon at its top right, in the color of the bar
+    private func quoteView(_ children: [TextNode], preview: UIImage? = nil, onTap: (() -> Void)? = nil, isUnlinked: Bool = false) -> some View {
         let color = theme.colors.messageText(userType)
         return HStack(alignment: .top, spacing: 8) {
             // the bar takes the height of the content beside it, because of the fixedSize below
@@ -101,11 +108,39 @@ extension MessageTextView {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
+            if isUnlinked {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundStyle(color.opacity(0.6))
+                    .accessibilityHidden(true)
+            }
         }
         .fixedSize(horizontal: false, vertical: true)
         .applyIf(onTap != nil) {
             $0.contentShape(Rectangle())
-                .onTapGesture { onTap?() }
+                .onTapGesture {
+                    // isaCloud: an unlinked quote explains itself in a small balloon over it, which goes away by itself after a few seconds
+                    if isUnlinked, unlinkedQuoteHint != nil {
+                        showUnlinkedHint = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                            showUnlinkedHint = false
+                        }
+                    } else {
+                        onTap?()
+                    }
+                }
+        }
+        .applyIf(isUnlinked && unlinkedQuoteHint != nil) {
+            $0.popover(isPresented: $showUnlinkedHint) {
+                Text(unlinkedQuoteHint ?? "")
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 260)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .presentationCompactAdaptation(.popover)
+            }
         }
     }
 }

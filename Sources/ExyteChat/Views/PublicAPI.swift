@@ -301,9 +301,15 @@ public extension ChatView {
     /// isaCloud: a tap on the first quote of a message (the block of the message it replies to) calls `action` with that message.
     /// The tap is a simple tap on that block only: the long press of the menu, the swipe to reply and the links keep working.
     /// - Default is nil: nothing happens on a tap, as before
-    func onQuoteTap(_ action: @escaping (Message) -> Void) -> ChatView {
+    /// - isLinked: isaCloud: whether the quote of a message points to the message it quotes. When it says false, a small info icon is drawn
+    ///   at the top of the quote. Nil: every quote counts as linked, no icon.
+    /// - unlinkedHint: isaCloud: the text of a small balloon over an unlinked quote, shown by a tap on it instead of calling `action`.
+    ///   Nil: the tap on an unlinked quote calls `action` too.
+    func onQuoteTap(isLinked: ((Message) -> Bool)? = nil, unlinkedHint: String? = nil, _ action: @escaping (Message) -> Void) -> ChatView {
         var view = self
         view.messageCustomizationParameters.quoteTapClosure = action
+        view.messageCustomizationParameters.quoteIsLinkedClosure = isLinked
+        view.messageCustomizationParameters.quoteUnlinkedHint = unlinkedHint
         return view
     }
 
