@@ -89,6 +89,10 @@ struct MessageCustomizationParameters {
 
     // isaCloud: called with the message when its first quote is tapped (see onQuoteTap in PublicAPI). Nil: no tap gesture on quotes.
     var quoteTapClosure: ((Message) -> Void)?
+    // isaCloud: whether the first quote of a message is linked to the message it quotes (see onQuoteTap in PublicAPI). Nil: every quote counts as linked.
+    var quoteIsLinkedClosure: ((Message) -> Bool)?
+    // isaCloud: the text of the small balloon a tap on an unlinked quote shows over it (see onQuoteTap in PublicAPI). Nil: the tap calls the action instead.
+    var quoteUnlinkedHint: String?
 }
 
 struct InputViewCustomizationParameters {
