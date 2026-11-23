@@ -298,6 +298,15 @@ public extension ChatView {
         return view
     }
 
+    /// isaCloud: a tap on the first quote of a message (the block of the message it replies to) calls `action` with that message.
+    /// The tap is a simple tap on that block only: the long press of the menu, the swipe to reply and the links keep working.
+    /// - Default is nil: nothing happens on a tap, as before
+    func onQuoteTap(_ action: @escaping (Message) -> Void) -> ChatView {
+        var view = self
+        view.messageCustomizationParameters.quoteTapClosure = action
+        return view
+    }
+
     // MARK: - Built-in message view
 
     func showMessageTimeView(_ show: Bool) -> ChatView {

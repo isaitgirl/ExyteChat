@@ -507,7 +507,9 @@ struct MessageView: View {
             userType: message.user.type,
             params: params,
             // isaCloud: the thumbnail of the quoted photo, drawn inside the quote (nil for other apps' messages)
-            quotePreview: message.quotePreview
+            quotePreview: message.quotePreview,
+            // isaCloud: the tap action of the first quote, with this message (nil unless the app sets onQuoteTap)
+            onQuoteTap: params.quoteTapClosure.map { action in { action(message) } }
         )
         .applyIf(!message.attachments.isEmpty || !message.files.isEmpty) {
             $0.frame(maxWidth: .infinity, alignment: .leading)
